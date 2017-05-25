@@ -1,2 +1,1 @@
-# gisquick-qgis-plugin
-Gisquick QGIS Plugin
+# Gisquick QGIS Plugin
