@@ -1,1 +1,0 @@
-# Gisquick QGIS Plugin
