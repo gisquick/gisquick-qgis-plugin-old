@@ -1,6 +1,6 @@
 [general]
 name=Gisquick plugin
-qgisMinimumVersion=2.8
+qgisMinimumVersion=2.14
 description=Publish your projects in Gisquick
 category=Web
 version=1.0.0
@@ -11,6 +11,6 @@ homepage=http://gisquick.org
 icon=icon.png
 experimental=False
 deprecated=False
-tracker=https://github.com/gislab-npo/gisquick/issues
-repository=https://github.com/gislab-npo/gisquick
+tracker=https://github.com/gislab-npo/gisquick-qgis-plugin/issues
+repository=https://github.com/gislab-npo/gisquick-qgis-plugin
 tags=web,gisquick,gislab
