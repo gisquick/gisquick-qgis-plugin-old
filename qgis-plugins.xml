@@ -3,9 +3,9 @@
     <pyqgis_plugin name="Gisquick" version="1.0.0">
         <description>Publish your projects in Gisquick</description>
         <homepage>http://gisquick.org</homepage>
-        <qgis_minimum_version>2.8</qgis_minimum_version>
+        <qgis_minimum_version>2.14</qgis_minimum_version>
         <file_name>gisquick-qgis-plugin-master.zip</file_name>
-        <author_name>GIS.lab NPO</author_name>
+        <author_name>Gisquick development team</author_name>
         <download_url>https://codeload.github.com/gislab-npo/gisquick-qgis-plugin/zip/master</download_url>
     </pyqgis_plugin>
 </plugins>
