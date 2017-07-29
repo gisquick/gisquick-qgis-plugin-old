@@ -45,7 +45,7 @@
        </sizepolicy>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="tab_baselayer">
        <attribute name="title">
@@ -509,8 +509,8 @@ QGroupBox::title {
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>375</width>
-             <height>528</height>
+             <width>383</width>
+             <height>536</height>
             </rect>
            </property>
            <property name="styleSheet">
@@ -1234,11 +1234,11 @@ QGroupBox::title {
             </sizepolicy>
            </property>
            <property name="text">
-            <string>Publish directory: not set</string>
+            <string>Publish directory:</string>
            </property>
           </widget>
          </item>
-         <item row="0" column="1">
+         <item row="0" column="2">
           <widget class="QPushButton" name="button_publish_dir">
            <property name="maximumSize">
             <size>
@@ -1251,17 +1251,37 @@ QGroupBox::title {
            </property>
           </widget>
          </item>
+         <item row="0" column="1">
+          <widget class="QPlainTextEdit" name="text_publish_dir">
+           <property name="maximumSize">
+            <size>
+             <width>16777215</width>
+             <height>36</height>
+            </size>
+           </property>
+           <property name="verticalScrollBarPolicy">
+            <enum>Qt::ScrollBarAlwaysOff</enum>
+           </property>
+           <property name="lineWrapMode">
+            <enum>QPlainTextEdit::NoWrap</enum>
+           </property>
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
         </layout>
        </item>
        <item>
-        <widget class="QLabel" name="label_gislab_url">
-         <property name="font">
-          <font>
-           <italic>true</italic>
-          </font>
+        <widget class="QCheckBox" name="zip_published_project">
+         <property name="toolTip">
+          <string>Create zip archive containing project files including data suitable for upload. Existing zip file will be silently overwritten.</string>
          </property>
          <property name="text">
-          <string/>
+          <string>Create project zip file for upload</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
          </property>
         </widget>
        </item>

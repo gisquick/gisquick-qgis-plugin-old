@@ -26,22 +26,20 @@ class ConfirmationPage(WizardPage):
         page.setButtonText(QWizard.FinishButton, "Publish")
 
     def initialize(self):
-        self._publish_dir = None
-        self._publish_label_default = "Publish directory: (current directory)"
+        self._publish_dir = self._publish_dir_default = os.path.dirname(self.plugin.project.fileName())
         self._datasources = {}
 
-        self.dialog.label_publish_dir.setText(self._publish_label_default)
+        self.dialog.text_publish_dir.setPlainText(self._publish_dir)
         self.dialog.button_publish_dir.clicked.connect(self.select_publish_dir)
 
     def select_publish_dir(self):
         self._publish_dir = str(QFileDialog.getExistingDirectory(self.dialog, "Select Directory"))
-        if self._publish_dir:
-            self.dialog.label_publish_dir.setText(
-                "Publish directory: {0}".format(self._publish_dir)
-            )
-        else:
-            self.dialog.label_publish_dir.setText(self._publish_label_default)
+        if not self._publish_dir:
+            self._publish_dir = self._publish_dir_default
 
+        self.dialog.text_publish_dir.setPlainText(
+            self._publish_dir
+        )
 
     def project_files(self):
         # Project files overview
@@ -133,15 +131,38 @@ class ConfirmationPage(WizardPage):
             if messages:
                 raise StandardError("Copying project files failed:\n{0}".format(os.linesep.join(messages)))
 
-        if not self._publish_dir:
-            return True
+        def create_zip_project_file():
+            dirpath = os.path.abspath(
+                os.path.join(
+                    self._publish_dir, os.pardir
+                )
+            )
+            filename = os.path.basename(self._publish_dir)
+            zip_out_file = os.path.join(dirpath, filename)
 
-        try:
-            copy_project_files()
-            copy_data_sources()
-        except StandardError as e:
-            QMessageBox.critical(self.dialog, "Error", "{0}".format(e))
-            return False
+            shutil.make_archive(
+                base_name=zip_out_file,
+                format='zip',
+                root_dir=dirpath,
+                base_dir=filename
+            )
+
+        if self._publish_dir != self._publish_dir_default:
+            # copy project and data files into destination folder
+            try:
+                copy_project_files()
+                copy_data_sources()
+            except StandardError as e:
+                QMessageBox.critical(self.dialog, "Error", "{0}".format(e))
+                return False
+
+        if self.dialog.zip_published_project.isChecked():
+            # create zip archive for published project (in parrent directory)
+            try:
+                create_zip_project_file()
+            except OSError as e:
+                QMessageBox.critical(self.dialog, "Error", "Creating zip file failed. {0}".format(e))
+                return False
 
         return True
 
