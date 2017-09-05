@@ -7,3 +7,9 @@ open source platform for publishing geospatial data in the sense of
 rapid sharing QGIS projects on the web. See <a
 href="http://gisquick.readthedocs.io">http://gisquick.readthedocs.io</a>
 for more info.
+
+## Authors (of this plugin)
+ * Marcel Dancak, dancakm@gmail.com
+
+## Contributors (alphabetical order)
+ * Martin Landa, landa.martin@gmail.com
