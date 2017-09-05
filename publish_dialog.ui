@@ -45,7 +45,7 @@
        </sizepolicy>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="tab_baselayer">
        <attribute name="title">
@@ -509,7 +509,7 @@ QGroupBox::title {
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>383</width>
+             <width>727</width>
              <height>536</height>
             </rect>
            </property>
@@ -1274,6 +1274,9 @@ QGroupBox::title {
        </item>
        <item>
         <widget class="QCheckBox" name="zip_published_project">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
          <property name="toolTip">
           <string>Create zip archive containing project files including data suitable for upload. Existing zip file will be silently overwritten.</string>
          </property>
@@ -1281,7 +1284,7 @@ QGroupBox::title {
           <string>Create project zip file for upload</string>
          </property>
          <property name="checked">
-          <bool>true</bool>
+          <bool>false</bool>
          </property>
         </widget>
        </item>
