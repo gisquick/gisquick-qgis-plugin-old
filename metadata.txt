@@ -6,7 +6,7 @@ category=Web
 version=1.0.0
 author=Gisquick Team
 email=info@gisquick.org
-about=This plugin allows publishing your QGIS project in Gisquick web-based publishing platform. Gisquick (<a href="http://gisquick.org">http://gisquick.org</a>) is designed as an open source platform for publishing geospatial data in the sense of rapid sharing QGIS projects on the web. See <a href="http://gisquick.readthedocs.io">http://gisquick.readthedocs.io</a> for more info.
+about=This plugin allows publishing your QGIS projects in Gisquick web-based publishing platform. Gisquick (<a href="http://gisquick.org">http://gisquick.org</a>) is designed as an open source platform for publishing geospatial data in the sense of rapid sharing QGIS projects on the web. See <a href="http://gisquick.readthedocs.io">http://gisquick.readthedocs.io</a> for more info.
 
 homepage=http://gisquick.org
 icon=icon.png

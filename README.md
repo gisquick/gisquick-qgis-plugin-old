@@ -1,6 +1,6 @@
 # Gisquick QGIS Plugin
 
-QGIS plugin for publishing your QGIS project in Gisquick web-based
+QGIS plugin for publishing your QGIS projects in Gisquick web-based
 publishing platform. Gisquick (<a
 href="http://gisquick.org">http://gisquick.org</a>) is designed as an
 open source platform for publishing geospatial data in the sense of
