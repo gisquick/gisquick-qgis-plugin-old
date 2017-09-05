@@ -1,11 +1,12 @@
 [general]
 name=Gisquick plugin
 qgisMinimumVersion=2.14
-description=Publish your projects in Gisquick
+description=Publish your QGIS projects in Gisquick
 category=Web
 version=1.0.0
-author=Marcel Dancak
-email=dancakm@gmail.com
+author=Gisquick Team
+email=info@gisquick.org
+about=This plugin allows publishing your QGIS project in Gisquick web-based publishing platform. Gisquick (<a href="http://gisquick.org">http://gisquick.org</a>) is designed as an open source platform for publishing geospatial data in the sense of rapid sharing QGIS projects on the web. See <a href="http://gisquick.readthedocs.io">http://gisquick.readthedocs.io</a> for more info.
 
 homepage=http://gisquick.org
 icon=icon.png
@@ -13,4 +14,4 @@ experimental=False
 deprecated=False
 tracker=https://github.com/gislab-npo/gisquick-qgis-plugin/issues
 repository=https://github.com/gislab-npo/gisquick-qgis-plugin
-tags=web,gisquick,gislab
+tags=web,gisquick
