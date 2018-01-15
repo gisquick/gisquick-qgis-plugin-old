@@ -31,6 +31,7 @@ from topics import TopicsPage
 from publish import PublishPage
 from confirmation import ConfirmationPage
 
+GISLAB_VERSION_FILE = "/etc/gislab_version"
 
 __metadata__ = ConfigParser.ConfigParser()
 __metadata__.read(os.path.join(os.path.dirname(__file__), 'metadata.txt'))
@@ -107,6 +108,7 @@ class WebGisPlugin:
 
     dialog = None
     project = None
+    run_in_gislab = False
 
     def __init__(self, iface):
         # Save reference to the QGIS interface
@@ -123,6 +125,8 @@ class WebGisPlugin:
 
             if qVersion() > '4.3.3':
                 QCoreApplication.installTranslator(self.translator)
+
+        self.run_in_gislab = os.path.exists(GISLAB_VERSION_FILE)
 
     def initGui(self):
         # Create action that will start plugin configuration

@@ -26,7 +26,18 @@ class ConfirmationPage(WizardPage):
         page.setButtonText(QWizard.FinishButton, "Publish")
 
     def initialize(self):
-        self._publish_dir = self._publish_dir_default = os.path.dirname(self.plugin.project.fileName())
+        if self.plugin.run_in_gislab:
+            self._publish_dir_default = os.path.join(
+                os.environ['HOME'],
+                'Publish',
+                os.environ['USER'],
+                os.path.basename(
+                    os.path.dirname(self.plugin.project.fileName())
+                )
+            )
+        else:
+            self._publish_dir_default = os.path.dirname(self.plugin.project.fileName())
+        self._publish_dir = self._publish_dir_default
         self._datasources = {}
 
         self.dialog.text_publish_dir.setPlainText(self._publish_dir)
@@ -61,17 +72,26 @@ class ConfirmationPage(WizardPage):
         return self.copy_published_project()
 
     def copy_published_project(self):
-        def copy_project_files():
+        # create publish directory if not exists
+        if not os.path.exists(self._publish_dir):
+            os.makedirs(self._publish_dir)
+
+        def copy_project_files(link=False):
             project_filename, metadata_filename = self.project_files()
+            fn = os.symlink if link else shutil.copy
             try:
-                shutil.copy(project_filename, self._publish_dir)
-                shutil.copy(metadata_filename, self._publish_dir)
-            except shutil.Error as e:
+                for filename in (project_filename, metadata_filename):
+                    outputname = os.path.join(
+                        self._publish_dir,
+                        os.path.basename(filename)
+                    )
+                    fn(filename, outputname)
+            except (shutil.Error, IOError) as e:
                 raise StandardError("Copying project files failed: {0}".format(e))
 
-        def copy_data_sources():
+        def copy_data_sources(link=False):
             messages = [] # error messages
-            overwrite = [] # files to overwrite
+            # overwrite = [] # files to overwrite
             project_dir = os.path.dirname(self.plugin.project.fileName())
             # collect files to be copied
             publish_files = {}
@@ -91,40 +111,47 @@ class ConfirmationPage(WizardPage):
                                 shpfile = '{0}.{1}'.format(shpname, shpext)
                                 if os.path.exists(shpfile):
                                     dstfile = os.path.join(publish_path, shpfile)
-                                    if os.path.exists(dstfile):
-                                        overwrite.append(dstfile)
+                                    # if os.path.exists(dstfile):
+                                    #     overwrite.append(dstfile)
                                     publish_files[publish_path].append(shpfile)
                         else:
                             # other formats (we expect one file per datasource)
                             dstfile = os.path.join(publish_path, os.path.basename(dsfile))
-                            if os.path.exists(dstfile):
-                                overwrite.append(dstfile)
+                            # if os.path.exists(dstfile):
+                            #     overwrite.append(dstfile)
                             publish_files[publish_path].append(dsfile)
                     else:
                         messages.append("Unsupported data source: {0} is not a file".format(dsfile))
 
-            if overwrite:
-                response = QMessageBox.question(self.dialog, "Overwrite",
-                                                "Files:\n{0}\nalready exists. Do you want to overwrite them?".format(
-                                                    os.linesep.join(overwrite if len(overwrite) < 6 else overwrite[:5] + ['...'])
-                                                ),
-                                                QMessageBox.Yes, QMessageBox.No)
-                if response == QMessageBox.Yes:
-                    overwrite = None
+            # if overwrite:
+            #     response = QMessageBox.question(self.dialog, "Overwrite",
+            #                                     "Files:\n{0}\nalready exists. Do you want to overwrite them?".format(
+            #                                         os.linesep.join(overwrite if len(overwrite) < 6 else overwrite[:5] + ['...'])
+            #                                     ),
+            #                                     QMessageBox.Yes, QMessageBox.No)
+            #     if response == QMessageBox.Yes:
+            #         overwrite = None
 
-            # copy collected project files
+            # copy/link collected project files
+            fn = os.symlink if link else shutil.copy
             for publish_dir, project_files in publish_files.iteritems():
                 try:
                     # create dirs if not exists
                     if not os.path.exists(os.path.dirname(publish_path)):
                         os.makedirs(os.path.dirname(publish_path))
                     for dsfile in project_files:
-                        if overwrite:
-                            # skip existing files
-                            dstfile = os.path.join(publish_path, os.path.basename(dsfile))
-                            if dstfile in overwrite:
-                                continue
-                        shutil.copy(dsfile, publish_path)
+                        # if overwrite:
+                        #     # skip existing files
+                        #     dstfile = os.path.join(publish_path, os.path.basename(dsfile))
+                        #     if dstfile in overwrite:
+                        #         continue
+                        dstfile = os.path.join(
+                            publish_path,
+                            os.path.basename(dsfile)
+                        )
+                        if not os.path.exists(dstfile) or \
+                           os.stat(dsfile).st_mtime > os.stat(dstfile).st_mtime:
+                            fn(dsfile, dstfile)
                 except (shutil.Error, IOError) as e:
                     messages.append("Failed to copy data source: {0}".format(e))
 
@@ -147,11 +174,11 @@ class ConfirmationPage(WizardPage):
                 base_dir=filename
             )
 
-        if self._publish_dir != self._publish_dir_default:
+        if self.plugin.run_in_gislab or self._publish_dir != self._publish_dir_default:
             # copy project and data files into destination folder
             try:
-                copy_project_files()
-                copy_data_sources()
+                copy_project_files() # link=self.plugin.run_in_gislab)
+                copy_data_sources()  # link=self.plugin.run_in_gislab)
             except StandardError as e:
                 QMessageBox.critical(self.dialog, "Error", "{0}".format(e))
                 return False
