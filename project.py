@@ -10,6 +10,7 @@ import os
 import re
 import types
 import datetime
+import time
 from decimal import Decimal
 from urlparse import parse_qs
 
@@ -17,11 +18,11 @@ from urlparse import parse_qs
 from qgis.core import *
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
+from qgis.PyQt.QtCore import QVariant
 from PyQt4.QtXml import QDomDocument
 
 from utils import to_decimal_array, opt_value
 from wizard import WizardPage
-
 
 AUTHENTICATION_OPTIONS = (
     'all',
@@ -545,7 +546,7 @@ class ProjectPage(WizardPage):
 
             dialog.mapbox_mapid.setEnabled(checked)
             dialog.mapbox_apikey.setEnabled(checked)
-            
+
             position = 1 if dialog.blank.isChecked() else 0
             if dialog.osm.isChecked():
                 position += 1
@@ -557,7 +558,7 @@ class ProjectPage(WizardPage):
                 dialog.default_baselayer.removeItem(position)
             if dialog.bing.isChecked():
                 resolutions.update(BING_LAYERS[0]['resolutions'])
-            
+
             self._update_min_max_scales(resolutions)
 
             if checked:
@@ -574,7 +575,7 @@ class ProjectPage(WizardPage):
 
             dialog.bing_style.setEnabled(checked)
             dialog.bing_apikey.setEnabled(checked)
-            
+
             position = 1 if dialog.blank.isChecked() else 0
             if dialog.osm.isChecked():
                 position += 1
@@ -588,7 +589,7 @@ class ProjectPage(WizardPage):
                 resolutions.update(BING_LAYERS[index]['resolutions'])
             else:
                 dialog.default_baselayer.removeItem(position)
-            
+
             self._update_min_max_scales(resolutions)
 
             if checked:
@@ -605,7 +606,7 @@ class ProjectPage(WizardPage):
                 position += 1
             bing_layer = BING_LAYERS[index]
             dialog.default_baselayer.setItemText(position, bing_layer['name'])
-                
+
         dialog.blank.toggled.connect(blank_toggled)
         dialog.osm.toggled.connect(osm_toggled)
         dialog.mapbox.toggled.connect(mapbox_toggled)
@@ -613,7 +614,7 @@ class ProjectPage(WizardPage):
         dialog.bing.toggled.connect(bing_toggled)
         dialog.bing_style.currentIndexChanged.connect(bing_layer_changed)
         dialog.bing_apikey.textChanged.connect(bing_apikey_changed)
-        
+
         def scales_changed(index):
             self.is_page_config_valid()
         dialog.min_scale.currentIndexChanged.connect(scales_changed)
@@ -663,7 +664,7 @@ class ProjectPage(WizardPage):
                 is_vector_layer = layer.type() == QgsMapLayer.VectorLayer
                 layer_item = QStandardItem(layer.name())
                 layer_item.setFlags(
-                      Qt.ItemIsEnabled
+                    Qt.ItemIsEnabled
                     | Qt.ItemIsSelectable
                     | Qt.ItemIsUserCheckable
                     | Qt.ItemIsTristate
@@ -672,12 +673,20 @@ class ProjectPage(WizardPage):
                 layer_item.setCheckState(Qt.Checked)
                 hidden = QStandardItem()
                 hidden.setFlags(
-                      Qt.ItemIsEnabled
+                    Qt.ItemIsEnabled
                     | Qt.ItemIsSelectable
                     | Qt.ItemIsUserCheckable
                     | Qt.ItemIsTristate
                 )
                 hidden.setCheckState(Qt.Unchecked)
+                time_attribute = QStandardItem()
+                time_attribute.setFlags(
+                    Qt.ItemIsEnabled
+                    | Qt.ItemIsSelectable
+                    | Qt.ItemIsUserCheckable
+                    | Qt.ItemIsTristate
+                )
+                time_attribute.setEditable(Qt.AutoText)
 
                 return [layer_item, hidden]
 
@@ -693,7 +702,7 @@ class ProjectPage(WizardPage):
                     return self.item(row, column)
             layers_model.columnItem = types.MethodType(columnItem, layers_model)
             layers_model.setHorizontalHeaderLabels(
-                ['Layer', 'Hidden']
+                ['Layer', 'Hidden', 'Time Attribute']
             )
             dialog.treeView.setModel(layers_model)
             layers_root = create_layer_widget(self.overlay_layers_tree)
@@ -702,12 +711,18 @@ class ProjectPage(WizardPage):
             dialog.treeView.header().setResizeMode(0, QHeaderView.Stretch)
             dialog.treeView.header().setVisible(True)
 
+            dialog.treeView.setItemDelegateForColumn(2, ComboDelegate(dialog.treeView))
+            for row in range(0, layers_model.rowCount()):
+                print row
+                dialog.treeView.openPersistentEditor(layers_model.index(row, 2))
+
             def layer_item_changed(item):
                 if item.model().columnItem(item, 0).data(Qt.UserRole): # check if item is layer item
                     dependent_items = None
                     if item.column() == 0:
                         enabled = item.checkState() == Qt.Checked
                         item.model().columnItem(item, 1).setEnabled(enabled)
+                        # item.model().columnItem(item, 2).setEnabled(enabled)
 
             layers_model.itemChanged.connect(layer_item_changed)
 
@@ -727,7 +742,7 @@ class ProjectPage(WizardPage):
 
     def is_complete(self):
         return self.initialized and self.project_valid and self._num_errors < 1
-        
+
     def get_published_layers(self, **layer_filter):
         """Returns array of qgis layers selected for publishing, optionally filtered by
         additional arguments.
@@ -758,6 +773,10 @@ class ProjectPage(WizardPage):
                     state = Qt.Checked if layer_filter['hidden'] else Qt.Unchecked
                     if layers_tree_model.columnItem(layer_widget, 1).checkState() != state:
                         continue
+                # if 'time_attribute' in layer_filter:
+                #     state = Qt.Checked if layer_filter['time_attribute'] else Qt.Unchecked
+                #     if layers_tree_model.columnItem(layer_widget, 2).checkState() != state:
+                #         continue
                 vector_layers.append(layer)
         return vector_layers
 
@@ -988,6 +1007,98 @@ class ProjectPage(WizardPage):
                 layer.id() for layer in self.plugin.layers_list()
             ]
         wfs_layers = self.plugin.project.readListEntry("WFSLayers", "/")[0] or []
+
+        # time validation
+        def validate(date_text, mask):
+            if isinstance(date_text, basestring):
+                for m in mask:
+                    try:
+                        datetime.datetime.strptime(date_text, m)
+                    except ValueError:
+                        pass
+                    else:
+                        return m
+                return -1
+            else:
+                return -1
+
+        # layer attribute time validation
+        def validate_time_attribute(layer_name, attribute_name, time_mask):
+            valid = False
+            use_masks = []
+            for l in self.plugin.layers_list():
+                if l.name() == layer_name:
+
+                    # validation
+                    old_idx = l.fieldNameIndex(attribute_name)
+                    for feature in l.getFeatures():
+                        mask_value = validate(feature.attributes()[old_idx], time_mask)
+                        use_masks.append(mask_value)
+                        if mask_value != -1:
+                            valid = True
+                    return use_masks, valid
+
+        # create new attribute
+        def create_new_attribute(attribute_layer, attribute_name):
+            if attribute_layer.fieldNameIndex(attribute_name) == -1:
+                print 'no layer exist'
+                attribute_layer.dataProvider().addAttributes([QgsField(attribute_name, QVariant.Int)])
+                attribute_layer.updateFields()
+            return attribute_layer.fieldNameIndex(attribute_name)
+
+        # get min, max value from given layer attribute
+        def get_min_max_attribute(layer_name, attribute_id):
+            attribute_values = []
+            for feature in layer_name.getFeatures():
+                if feature.attributes()[attribute_id] != NULL:
+                    attribute_values.append(feature.attributes()[attribute_id])
+
+            if len(attribute_values) > 0:
+                return [min(attribute_values), max(attribute_values)]
+            # else:
+            #     return [-1, -1]
+
+        def create_unix_time_attribute(layer_name, time_attribute_name, new_attribute_name, time_format_mask):
+            for l in self.plugin.layers_list():
+                if l.name() == layer_name:
+
+                    # add new attribute and get its id
+                    new_idx = create_new_attribute(l, new_attribute_name)
+
+                    # get time attribute index
+                    old_idx = l.fieldNameIndex(time_attribute_name)
+                    feature_idx = 0
+
+                    # add data into new attribute
+                    for feature in l.getFeatures():
+                        # check if mask exist
+                        if time_format_mask[feature_idx] != -1:
+                            unix = time.mktime(datetime.datetime.strptime(feature.attributes()[old_idx],
+                                                                          time_format_mask[feature_idx]).timetuple())
+                            attr = {new_idx: unix}
+                            l.dataProvider().changeAttributeValues({feature_idx: attr})
+                        feature_idx += 1
+                        # if feature_idx == 10:
+                        #     break
+
+                    l.updateFields()
+
+                    # get min max unix time
+                    return get_min_max_attribute(l, new_idx)
+
+        # time format mask
+        mask_array = ["%Y-%m-%d", "%d-%m-%Y", "%Y-%m-%dT%H:%M:%S"]
+
+        unix_time_layer = "UTconvert"  # limited length by 10 characters
+
+        def get_time_info(layer_name, attribute_name):
+            validation_mask, valid = validate_time_attribute(layer_name, attribute_name, mask_array)
+
+            if valid:
+                return create_unix_time_attribute(layer_name, attribute_name, unix_time_layer, validation_mask), valid
+            else:
+                return [], valid
+
         def create_overlays_data(node):
             sublayers = []
             for child in node.children:
@@ -1038,6 +1149,15 @@ class ProjectPage(WizardPage):
                         'keyword_list': layer.keywordList()
                     }
                 }
+
+                if layers_model.columnItem(layer_widget, 2) is not None:
+                    if layers_model.columnItem(layer_widget, 2).text() != "":
+                        min_max, valid = get_time_info(layer.name(), layers_model.columnItem(layer_widget, 2).text())
+                        if valid:
+                            layer_data['timeAttribute'] = unix_time_layer
+                            layer_data['timeValues'] = min_max
+                    # else:
+                    #     layer_data['timeAttribute'] = ''
 
                 if layer.attribution():
                     layer_data['attribution'] = {
@@ -1142,3 +1262,36 @@ class ProjectPage(WizardPage):
             }
 
         return metadata
+
+
+class ComboDelegate(QItemDelegate):
+
+    # for layer in QgsMapLayer:
+    #     for field in layer.pendingFields():
+    #         print field.name()
+    i = 0
+
+    # def __init__(self, parent):
+    #     QItemDelegate.__init__(self, parent)
+
+    def createEditor(self, parent, option, index):
+        self.i += 10
+        # print self.i
+        # print QgsMapLayer
+        combo = QComboBox(parent)
+        combo.addItem('')
+        combo.addItem('platiod')
+        combo.addItem('kod')
+        return combo
+
+    # def setEditorData(self, editor, index):
+    #     text = index.data()
+    #     index = editor.findText(text)
+    #     editor.setCurrentIndex(index)
+
+    # def setModelData(self, editor, model, index):
+    #     model.setData(index, editor.itemText(editor.currentIndex()))
+
+    # def updateEditorGeometry(self, editor, option, index):
+    #     # print option, option.rect
+    #     editor.setGeometry(option.rect)
