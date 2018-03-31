@@ -1154,6 +1154,7 @@ class ProjectPage(WizardPage):
                     if layers_model.columnItem(layer_widget, 2).text() != "":
                         min_max, valid = get_time_info(layer.name(), layers_model.columnItem(layer_widget, 2).text())
                         if valid:
+                            layer_data['original_time_attribute'] = layers_model.columnItem(layer_widget, 2).text()
                             layer_data['timeAttribute'] = unix_time_layer
                             layer_data['timeValues'] = min_max
                     # else:
