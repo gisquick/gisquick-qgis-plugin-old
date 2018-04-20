@@ -1159,8 +1159,8 @@ class ProjectPage(WizardPage):
                        ''
             elif valid and unix_check != Qt.Checked:
                 validation_mask = remove_values_from_list(validation_mask, -1)
-                mask_array = [most_common(validation_mask)]
-                return get_min_max_mask(layer_name, attribute_name, mask_array), valid, mask_array[0]
+                mask_array = [[most_common(validation_mask), '']]
+                return get_min_max_mask(layer_name, attribute_name, mask_array), valid, mask_array
             else:
                 return [], valid, ''
 
