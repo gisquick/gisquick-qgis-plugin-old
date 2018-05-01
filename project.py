@@ -697,16 +697,9 @@ class ProjectPage(WizardPage):
                     | Qt.ItemIsTristate
                 )
                 date_mask.setEnabled(False)
+                date_mask.setText('YYYY-MM-DD HH:mm')
                 # date_mask.setEditable(Qt.AutoText)
-                unix_check = QStandardItem()
-                unix_check.setFlags(
-                    Qt.ItemIsEnabled
-                    | Qt.ItemIsSelectable
-                    | Qt.ItemIsUserCheckable
-                    | Qt.ItemIsTristate
-                )
-                unix_check.setCheckState(Qt.Unchecked)
-                return [layer_item, hidden, time_attribute, date_mask, unix_check]
+                return [layer_item, hidden, time_attribute, date_mask]
 
         if self.overlay_layers_tree:
             layers_model = QStandardItemModel()
@@ -720,7 +713,7 @@ class ProjectPage(WizardPage):
                     return self.item(row, column)
             layers_model.columnItem = types.MethodType(columnItem, layers_model)
             layers_model.setHorizontalHeaderLabels(
-                ['Layer', 'Hidden', 'Time Attribute', 'Date Mask', 'Create Unix']
+                ['Layer', 'Hidden', 'Time Attribute', 'Date Mask']
             )
             dialog.treeView.setModel(layers_model)
             layers_root = create_layer_widget(self.overlay_layers_tree)
@@ -1054,8 +1047,8 @@ class ProjectPage(WizardPage):
 
         # layer attribute time validation
         def validate_time_attribute(layer_name, attribute_name, time_mask):
-            valid = False
             use_masks = []
+            unique_mask = []
             for l in self.plugin.layers_list():
                 if l.name() == layer_name:
                     # validation
@@ -1063,9 +1056,9 @@ class ProjectPage(WizardPage):
                     for feature in l.getFeatures():
                         mask_value = validate(feature.attributes()[old_idx], time_mask)
                         use_masks.append(mask_value)
-                        if mask_value != -1:
-                            valid = True
-                    return use_masks, valid
+                        if mask_value != -1 and mask_value not in unique_mask:
+                            unique_mask.append(mask_value)
+                    return use_masks, unique_mask
 
         # create new attribute
         def create_new_attribute(attribute_layer, attribute_name):
@@ -1136,7 +1129,7 @@ class ProjectPage(WizardPage):
         datetime_mask_array = [
             ["%Y-%m-%d", "YYYY-MM-DD"],
             ["%d-%m-%Y", "DD-MM-YYYY"],
-            ["%Y-%m-%dT%H:%M:%S", "YYYYY-MM-DDTHH:mm"]
+            ["%Y-%m-%dT%H:%M:%S", "YYYY-MM-DDTHH:mm"]
         ]
 
         unix_time_layer = "UTconvert"  # limited length by 10 characters
@@ -1149,20 +1142,18 @@ class ProjectPage(WizardPage):
         def remove_values_from_list(the_list, val):
             return [value for value in the_list if value != val]
 
-        def get_time_info(layer_name, attribute_name, unix_check):
+        def get_time_info(layer_name, attribute_name):
 
-            validation_mask, valid = validate_time_attribute(layer_name, attribute_name, datetime_mask_array)
+            validation_mask, unique_mask = validate_time_attribute(layer_name, attribute_name, datetime_mask_array)
 
-            if valid and unix_check == Qt.Checked:
-                return create_unix_time_attribute(layer_name, attribute_name, unix_time_layer, validation_mask),\
-                       valid,\
-                       ''
-            elif valid and unix_check != Qt.Checked:
+            if len(unique_mask) > 1:
+                return create_unix_time_attribute(layer_name, attribute_name, unix_time_layer, validation_mask), True, ''
+            elif len(unique_mask) == 1:
                 validation_mask = remove_values_from_list(validation_mask, -1)
                 mask_array = [[most_common(validation_mask), '']]
-                return get_min_max_mask(layer_name, attribute_name, mask_array), valid, mask_array
+                return get_min_max_mask(layer_name, attribute_name, mask_array), True, mask_array
             else:
-                return [], valid, ''
+                return [], False, ''
 
         def create_overlays_data(node):
             sublayers = []
@@ -1217,21 +1208,19 @@ class ProjectPage(WizardPage):
 
                 if layers_model.columnItem(layer_widget, 2) is not None:
                     if layers_model.columnItem(layer_widget, 2).text() != "":
-                        is_unix = layers_model.columnItem(layer_widget, 4).checkState() == Qt.Checked
                         min_max, valid, input_datetime_mask = get_time_info(
                             layer.name(),
-                            layers_model.columnItem(layer_widget, 2).text(),
-                            layers_model.columnItem(layer_widget, 4).checkState())
+                            layers_model.columnItem(layer_widget, 2).text())
                         if valid:
-                            layer_data['unix'] = is_unix
                             layer_data['original_time_attribute'] = layers_model.columnItem(layer_widget, 2).text()
                             layer_data['output_datetime_mask'] = layers_model.columnItem(layer_widget, 3).text()
                             layer_data['timeValues'] = min_max
                             if input_datetime_mask:
+                                layer_data['unix'] = False
                                 layer_data['input_datetime_mask'] = find_moment_mask(datetime_mask_array,
-                                                                                     input_datetime_mask)
-                                # print layer_data['input_datetime_mask']
+                                                                                     input_datetime_mask[0][0])
                             else:
+                                layer_data['unix'] = True
                                 layer_data['timeAttribute'] = unix_time_layer
 
                 if layer.attribution():
