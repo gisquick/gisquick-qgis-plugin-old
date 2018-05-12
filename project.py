@@ -1040,25 +1040,28 @@ class ProjectPage(WizardPage):
                     except ValueError:
                         pass
                     else:
-                        return m[0]
-                return -1
+                        return m[0], m[2]
+                return -1, ''
             else:
-                return -1
+                return -1, ''
 
         # layer attribute time validation
         def validate_time_attribute(layer_name, attribute_name, time_mask):
-            use_masks = []
+            validation_mask = []
             unique_mask = []
+            has_special_char = False
             for l in self.plugin.layers_list():
                 if l.name() == layer_name:
                     # validation
                     old_idx = l.fieldNameIndex(attribute_name)
                     for feature in l.getFeatures():
-                        mask_value = validate(feature.attributes()[old_idx], time_mask)
-                        use_masks.append(mask_value)
+                        mask_value, special_char = validate(feature.attributes()[old_idx], time_mask)
+                        validation_mask.append(mask_value)
                         if mask_value != -1 and mask_value not in unique_mask:
                             unique_mask.append(mask_value)
-                    return use_masks, unique_mask
+                        if special_char:
+                            has_special_char = True
+                    return validation_mask, unique_mask, has_special_char
 
         # create new attribute
         def create_new_attribute(attribute_layer, attribute_name):
@@ -1079,20 +1082,20 @@ class ProjectPage(WizardPage):
                 return [min(attribute_values), max(attribute_values)]
 
         # get min, max value from given layer attribute and specific datetime mask array
-        def get_min_max_mask(layer_name, attribute_name, mask):
+        def get_min_max_mask(layer_name, attribute_name, val_mask):
             attribute_values = []
             for l in self.plugin.layers_list():
                 if l.name() == layer_name:
                     attribute_id = l.fieldNameIndex(attribute_name)
+                    feature_idx = 0
                     for feature in l.getFeatures():
-                        if feature.attributes()[attribute_id] != NULL:
-                            is_valid = validate(feature.attributes()[attribute_id], mask)
-                            if is_valid != -1:
-                                unix = time.mktime(datetime.datetime.strptime(feature.attributes()[attribute_id],
-                                                                              is_valid).timetuple())
-                                attribute_values.append(unix)
-
+                        if val_mask[feature_idx] != -1:
+                            unix = time.mktime(datetime.datetime.strptime(feature.attributes()[attribute_id],
+                                                                          val_mask[feature_idx]).timetuple())
+                            attribute_values.append(unix)
+                        feature_idx += 1
             if len(attribute_values) > 0:
+                print [min(attribute_values), max(attribute_values)]
                 return [min(attribute_values), max(attribute_values)]
 
         def create_unix_time_attribute(layer_name, time_attribute_name, new_attribute_name, time_format_mask):
@@ -1127,9 +1130,9 @@ class ProjectPage(WizardPage):
 
         # time format masks
         datetime_mask_array = [
-            ["%Y-%m-%d", "YYYY-MM-DD"],
-            ["%d-%m-%Y", "DD-MM-YYYY"],
-            ["%Y-%m-%dT%H:%M:%S", "YYYY-MM-DDTHH:mm"]
+            ["%Y-%m-%d", "YYYY-MM-DD", False],
+            ["%d-%m-%Y", "DD-MM-YYYY", False],
+            ["%Y-%m-%dT%H:%M:%S", "YYYY-MM-DDTHH:mm", True]
         ]
 
         unix_time_layer = "UTconvert"  # limited length by 10 characters
@@ -1144,14 +1147,18 @@ class ProjectPage(WizardPage):
 
         def get_time_info(layer_name, attribute_name):
 
-            validation_mask, unique_mask = validate_time_attribute(layer_name, attribute_name, datetime_mask_array)
+            validation_mask, unique_mask, special_char = validate_time_attribute(layer_name, attribute_name, datetime_mask_array)
 
-            if len(unique_mask) > 1:
+            print special_char
+
+            if len(unique_mask) > 1 or special_char:
+                print 'special'
                 return create_unix_time_attribute(layer_name, attribute_name, unix_time_layer, validation_mask), True, ''
-            elif len(unique_mask) == 1:
-                validation_mask = remove_values_from_list(validation_mask, -1)
-                mask_array = [[most_common(validation_mask), '']]
-                return get_min_max_mask(layer_name, attribute_name, mask_array), True, mask_array
+            elif len(unique_mask) == 1 and special_char is not True:
+                print 'not special'
+                mask = most_common(remove_values_from_list(validation_mask, -1))
+                print mask
+                return get_min_max_mask(layer_name, attribute_name, validation_mask), True, mask
             else:
                 return [], False, ''
 
@@ -1214,14 +1221,14 @@ class ProjectPage(WizardPage):
                         if valid:
                             layer_data['original_time_attribute'] = layers_model.columnItem(layer_widget, 2).text()
                             layer_data['output_datetime_mask'] = layers_model.columnItem(layer_widget, 3).text()
-                            layer_data['timeValues'] = min_max
+                            layer_data['time_values'] = min_max
                             if input_datetime_mask:
                                 layer_data['unix'] = False
                                 layer_data['input_datetime_mask'] = find_moment_mask(datetime_mask_array,
-                                                                                     input_datetime_mask[0][0])
+                                                                                     input_datetime_mask)
                             else:
                                 layer_data['unix'] = True
-                                layer_data['timeAttribute'] = unix_time_layer
+                                layer_data['time_attribute'] = unix_time_layer
 
                 if layer.attribution():
                     layer_data['attribution'] = {
