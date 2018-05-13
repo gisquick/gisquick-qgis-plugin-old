@@ -181,7 +181,10 @@ class PublishPage(WizardPage):
                                           "Provider type: {8}",
                                           "Attributes: {9}",
                                           "Attribution:", ["Title: {10}", "URL: {11}"],
-                                          "Metadata:", ["Title: {12}", "Abstract: {13}", "Keyword list: {14}"] ]
+                                          "Metadata:", ["Title: {12}", "Abstract: {13}", "Keyword list: {14}"],
+                                          "Time layer data", ["Time attribute: {15}",
+                                                              "Output datetime format: {16}",
+                                                              "Unix attribute created: {17}"] ]
                                       },
                                       [
                                           layer_data['name'],
@@ -201,7 +204,10 @@ class PublishPage(WizardPage):
                                           opt_value(layer_data, 'attribution.url'),
                                           layer_data['metadata']['title'],
                                           layer_data['metadata']['abstract'],
-                                          layer_data['metadata']['keyword_list']
+                                          layer_data['metadata']['keyword_list'],
+                                          opt_value(layer_data, 'original_time_attribute'),
+                                          opt_value(layer_data, 'output_datetime_mask'),
+                                          opt_value(layer_data, 'unix'),
                                       ]
                 )
 

@@ -10,6 +10,7 @@ import os
 import re
 import types
 import datetime
+import time
 from decimal import Decimal
 from urlparse import parse_qs
 
@@ -17,11 +18,11 @@ from urlparse import parse_qs
 from qgis.core import *
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
+from qgis.PyQt.QtCore import QVariant
 from PyQt4.QtXml import QDomDocument
 
 from utils import to_decimal_array, opt_value
 from wizard import WizardPage
-
 
 AUTHENTICATION_OPTIONS = (
     'all',
@@ -545,7 +546,7 @@ class ProjectPage(WizardPage):
 
             dialog.mapbox_mapid.setEnabled(checked)
             dialog.mapbox_apikey.setEnabled(checked)
-            
+
             position = 1 if dialog.blank.isChecked() else 0
             if dialog.osm.isChecked():
                 position += 1
@@ -557,7 +558,7 @@ class ProjectPage(WizardPage):
                 dialog.default_baselayer.removeItem(position)
             if dialog.bing.isChecked():
                 resolutions.update(BING_LAYERS[0]['resolutions'])
-            
+
             self._update_min_max_scales(resolutions)
 
             if checked:
@@ -574,7 +575,7 @@ class ProjectPage(WizardPage):
 
             dialog.bing_style.setEnabled(checked)
             dialog.bing_apikey.setEnabled(checked)
-            
+
             position = 1 if dialog.blank.isChecked() else 0
             if dialog.osm.isChecked():
                 position += 1
@@ -588,7 +589,7 @@ class ProjectPage(WizardPage):
                 resolutions.update(BING_LAYERS[index]['resolutions'])
             else:
                 dialog.default_baselayer.removeItem(position)
-            
+
             self._update_min_max_scales(resolutions)
 
             if checked:
@@ -605,7 +606,7 @@ class ProjectPage(WizardPage):
                 position += 1
             bing_layer = BING_LAYERS[index]
             dialog.default_baselayer.setItemText(position, bing_layer['name'])
-                
+
         dialog.blank.toggled.connect(blank_toggled)
         dialog.osm.toggled.connect(osm_toggled)
         dialog.mapbox.toggled.connect(mapbox_toggled)
@@ -613,7 +614,7 @@ class ProjectPage(WizardPage):
         dialog.bing.toggled.connect(bing_toggled)
         dialog.bing_style.currentIndexChanged.connect(bing_layer_changed)
         dialog.bing_apikey.textChanged.connect(bing_apikey_changed)
-        
+
         def scales_changed(index):
             self.is_page_config_valid()
         dialog.min_scale.currentIndexChanged.connect(scales_changed)
@@ -663,7 +664,7 @@ class ProjectPage(WizardPage):
                 is_vector_layer = layer.type() == QgsMapLayer.VectorLayer
                 layer_item = QStandardItem(layer.name())
                 layer_item.setFlags(
-                      Qt.ItemIsEnabled
+                    Qt.ItemIsEnabled
                     | Qt.ItemIsSelectable
                     | Qt.ItemIsUserCheckable
                     | Qt.ItemIsTristate
@@ -672,14 +673,33 @@ class ProjectPage(WizardPage):
                 layer_item.setCheckState(Qt.Checked)
                 hidden = QStandardItem()
                 hidden.setFlags(
-                      Qt.ItemIsEnabled
+                    Qt.ItemIsEnabled
                     | Qt.ItemIsSelectable
                     | Qt.ItemIsUserCheckable
                     | Qt.ItemIsTristate
                 )
                 hidden.setCheckState(Qt.Unchecked)
+                time_attribute = QStandardItem()
+                time_attribute.setFlags(
+                    Qt.ItemIsEnabled
+                    | Qt.ItemIsSelectable
+                    | Qt.ItemIsUserCheckable
+                    | Qt.ItemIsTristate
+                )
+                time_attribute.setEnabled(False)
+                # time_attribute.setEditable(Qt.AutoText)
 
-                return [layer_item, hidden]
+                date_mask = QStandardItem()
+                date_mask.setFlags(
+                    Qt.ItemIsEnabled
+                    | Qt.ItemIsSelectable
+                    | Qt.ItemIsUserCheckable
+                    | Qt.ItemIsTristate
+                )
+                date_mask.setEnabled(False)
+                date_mask.setText('YYYY-MM-DD HH:mm')
+                # date_mask.setEditable(Qt.AutoText)
+                return [layer_item, hidden, time_attribute, date_mask]
 
         if self.overlay_layers_tree:
             layers_model = QStandardItemModel()
@@ -693,7 +713,7 @@ class ProjectPage(WizardPage):
                     return self.item(row, column)
             layers_model.columnItem = types.MethodType(columnItem, layers_model)
             layers_model.setHorizontalHeaderLabels(
-                ['Layer', 'Hidden']
+                ['Layer', 'Hidden', 'Time Attribute', 'Date Mask']
             )
             dialog.treeView.setModel(layers_model)
             layers_root = create_layer_widget(self.overlay_layers_tree)
@@ -702,13 +722,33 @@ class ProjectPage(WizardPage):
             dialog.treeView.header().setResizeMode(0, QHeaderView.Stretch)
             dialog.treeView.header().setVisible(True)
 
+            def get_vector_layers(all_layers):
+                vector_layers = []
+                for l in all_layers:
+                    if l.type() == QgsMapLayer.VectorLayer:
+                        vector_layers.append(l)
+                return vector_layers
+
+            dialog.treeView.setItemDelegateForColumn(2, ComboDelegateAttribute(dialog.treeView, get_vector_layers(self.plugin.layers_list())))
+            for row in range(0, layers_model.rowCount()):
+                # print row
+                if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
+                    dialog.treeView.openPersistentEditor(layers_model.index(row, 2))
+
+            dialog.treeView.setItemDelegateForColumn(3, ComboDelegateMask(dialog.treeView))
+            for row in range(0, layers_model.rowCount()):
+                if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
+                    dialog.treeView.openPersistentEditor(layers_model.index(row, 3))
+
             def layer_item_changed(item):
                 if item.model().columnItem(item, 0).data(Qt.UserRole): # check if item is layer item
                     dependent_items = None
                     if item.column() == 0:
                         enabled = item.checkState() == Qt.Checked
                         item.model().columnItem(item, 1).setEnabled(enabled)
-
+                        # if layer.type() == QgsMapLayer.VectorLayer:
+                        #     item.model().columnItem(item, 4).setEnabled(enabled)
+            #
             layers_model.itemChanged.connect(layer_item_changed)
 
         if self.plugin.last_metadata:
@@ -727,7 +767,7 @@ class ProjectPage(WizardPage):
 
     def is_complete(self):
         return self.initialized and self.project_valid and self._num_errors < 1
-        
+
     def get_published_layers(self, **layer_filter):
         """Returns array of qgis layers selected for publishing, optionally filtered by
         additional arguments.
@@ -759,6 +799,8 @@ class ProjectPage(WizardPage):
                     if layers_tree_model.columnItem(layer_widget, 1).checkState() != state:
                         continue
                 vector_layers.append(layer)
+            if layer.type() != QgsMapLayer.VectorLayer:
+                layers_tree_model.columnItem(layer_widget, 4).setEnabled(False)
         return vector_layers
 
     def get_metadata(self):
@@ -988,6 +1030,138 @@ class ProjectPage(WizardPage):
                 layer.id() for layer in self.plugin.layers_list()
             ]
         wfs_layers = self.plugin.project.readListEntry("WFSLayers", "/")[0] or []
+
+        # time validation
+        def validate(date_text, mask):
+            if isinstance(date_text, basestring):
+                for m in mask:
+                    try:
+                        datetime.datetime.strptime(date_text, m[0])
+                    except ValueError:
+                        pass
+                    else:
+                        return m[0], m[2]
+                return -1, ''
+            else:
+                return -1, ''
+
+        # layer attribute time validation
+        def validate_time_attribute(layer_name, attribute_name, time_mask):
+            validation_mask = []
+            unique_mask = []
+            has_special_char = False
+            for l in self.plugin.layers_list():
+                if l.name() == layer_name:
+                    # validation
+                    old_idx = l.fieldNameIndex(attribute_name)
+                    for feature in l.getFeatures():
+                        mask_value, special_char = validate(feature.attributes()[old_idx], time_mask)
+                        validation_mask.append(mask_value)
+                        if mask_value != -1 and mask_value not in unique_mask:
+                            unique_mask.append(mask_value)
+                        if special_char:
+                            has_special_char = True
+                    return validation_mask, unique_mask, has_special_char
+
+        # create new attribute
+        def create_new_attribute(attribute_layer, attribute_name):
+            if attribute_layer.fieldNameIndex(attribute_name) == -1:
+                # print 'no layer exist'
+                attribute_layer.dataProvider().addAttributes([QgsField(attribute_name, QVariant.Int)])
+                attribute_layer.updateFields()
+            return attribute_layer.fieldNameIndex(attribute_name)
+
+        # get min, max value from given layer attribute
+        def get_min_max_attribute(layer_name, attribute_id):
+            attribute_values = []
+            for feature in layer_name.getFeatures():
+                if feature.attributes()[attribute_id] != NULL:
+                    attribute_values.append(feature.attributes()[attribute_id])
+
+            if len(attribute_values) > 0:
+                return [min(attribute_values), max(attribute_values)]
+
+        # get min, max value from given layer attribute and specific datetime mask array
+        def get_min_max_mask(layer_name, attribute_name, val_mask):
+            attribute_values = []
+            for l in self.plugin.layers_list():
+                if l.name() == layer_name:
+                    attribute_id = l.fieldNameIndex(attribute_name)
+                    feature_idx = 0
+                    for feature in l.getFeatures():
+                        if val_mask[feature_idx] != -1:
+                            unix = time.mktime(datetime.datetime.strptime(feature.attributes()[attribute_id],
+                                                                          val_mask[feature_idx]).timetuple())
+                            attribute_values.append(unix)
+                        feature_idx += 1
+            if len(attribute_values) > 0:
+                print [min(attribute_values), max(attribute_values)]
+                return [min(attribute_values), max(attribute_values)]
+
+        def create_unix_time_attribute(layer_name, time_attribute_name, new_attribute_name, time_format_mask):
+            for l in self.plugin.layers_list():
+                if l.name() == layer_name:
+
+                    # add new attribute and get its id
+                    new_idx = create_new_attribute(l, new_attribute_name)
+
+                    # get time attribute index
+                    old_idx = l.fieldNameIndex(time_attribute_name)
+                    feature_idx = 0
+
+                    # add data into new attribute
+                    for feature in l.getFeatures():
+                        # check if mask exist
+                        if time_format_mask[feature_idx] != -1:
+                            unix = time.mktime(datetime.datetime.strptime(feature.attributes()[old_idx],
+                                                                          time_format_mask[feature_idx]).timetuple())
+                            attr = {new_idx: unix}
+                            l.dataProvider().changeAttributeValues({feature_idx: attr})
+                        feature_idx += 1
+
+                    l.updateFields()
+
+                    # get min max unix time
+                    return get_min_max_attribute(l, new_idx)
+
+        # get most common element in list
+        def most_common(lst):
+            return max(set(lst), key=lst.count)
+
+        # time format masks
+        datetime_mask_array = [
+            ["%Y-%m-%d", "YYYY-MM-DD", False],
+            ["%d-%m-%Y", "DD-MM-YYYY", False],
+            ["%Y-%m-%dT%H:%M:%S", "YYYY-MM-DDTHH:mm", True]
+        ]
+
+        unix_time_layer = "UTconvert"  # limited length by 10 characters
+
+        def find_moment_mask(mask_array, mask):
+            for m in mask_array:
+                if m[0] == mask:
+                    return m[1]
+
+        def remove_values_from_list(the_list, val):
+            return [value for value in the_list if value != val]
+
+        def get_time_info(layer_name, attribute_name):
+
+            validation_mask, unique_mask, special_char = validate_time_attribute(layer_name, attribute_name, datetime_mask_array)
+
+            print special_char
+
+            if len(unique_mask) > 1 or special_char:
+                print 'special'
+                return create_unix_time_attribute(layer_name, attribute_name, unix_time_layer, validation_mask), True, ''
+            elif len(unique_mask) == 1 and special_char is not True:
+                print 'not special'
+                mask = most_common(remove_values_from_list(validation_mask, -1))
+                print mask
+                return get_min_max_mask(layer_name, attribute_name, validation_mask), True, mask
+            else:
+                return [], False, ''
+
         def create_overlays_data(node):
             sublayers = []
             for child in node.children:
@@ -1038,6 +1212,23 @@ class ProjectPage(WizardPage):
                         'keyword_list': layer.keywordList()
                     }
                 }
+
+                if layers_model.columnItem(layer_widget, 2) is not None:
+                    if layers_model.columnItem(layer_widget, 2).text() != "":
+                        min_max, valid, input_datetime_mask = get_time_info(
+                            layer.name(),
+                            layers_model.columnItem(layer_widget, 2).text())
+                        if valid:
+                            layer_data['original_time_attribute'] = layers_model.columnItem(layer_widget, 2).text()
+                            layer_data['output_datetime_mask'] = layers_model.columnItem(layer_widget, 3).text()
+                            layer_data['time_values'] = min_max
+                            if input_datetime_mask:
+                                layer_data['unix'] = False
+                                layer_data['input_datetime_mask'] = find_moment_mask(datetime_mask_array,
+                                                                                     input_datetime_mask)
+                            else:
+                                layer_data['unix'] = True
+                                layer_data['time_attribute'] = unix_time_layer
 
                 if layer.attribution():
                     layer_data['attribution'] = {
@@ -1142,3 +1333,58 @@ class ProjectPage(WizardPage):
             }
 
         return metadata
+
+
+class ComboDelegateAttribute(QItemDelegate):
+
+    # for layer in QgsMapLayer:
+    #     for field in layer.pendingFields():
+    #         print field.name()
+    i = 0
+
+    def __init__(self, parent, layers):
+        self.layers = layers
+        QItemDelegate.__init__(self, parent)
+
+    def createEditor(self, parent, option, index):
+        # print self.i
+        # print self.layers[self.i].name()
+        # print QgsMapLayer
+
+        combo = QComboBox(parent)
+        combo.addItem('')
+        if self.layers[self.i].type() == QgsMapLayer.VectorLayer:
+            for field in self.layers[self.i].fields():
+                combo.addItem(field.name())
+
+        self.i += 1
+        return combo
+
+    # def setEditorData(self, editor, index):
+    #     text = index.data()
+    #     index = editor.findText(text)
+    #     editor.setCurrentIndex(index)
+
+    # def setModelData(self, editor, model, index):
+    #     model.setData(index, editor.itemText(editor.currentIndex()))
+
+    # def updateEditorGeometry(self, editor, option, index):
+    #     # print option, option.rect
+    #     editor.setGeometry(option.rect)
+
+
+class ComboDelegateMask(QItemDelegate):
+
+    output_mask_array = [
+        'YYYY-MM-DD HH:mm',
+        'YYYY-MM-DD',
+        'DD-MM-YYYY HH:mm',
+        'DD-MM-YYYY',
+        'HH:mm'
+    ]
+
+    def createEditor(self, parent, option, index):
+        combo = QComboBox(parent)
+        for mask in self.output_mask_array:
+            combo.addItem(mask)
+        return combo
