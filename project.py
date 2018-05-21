@@ -108,6 +108,12 @@ BING_LAYERS = (
 MSG_ERROR = "Error"
 MSG_WARNING = "Warning"
 
+# time format masks
+datetime_mask_array = [
+    ["%Y-%m-%d", "YYYY-MM-DD", False],
+    ["%d-%m-%Y", "DD-MM-YYYY", False],
+    ["%Y-%m-%dT%H:%M:%S", "YYYY-MM-DDTHH:mm", True]
+]
 
 class ProjectPage(WizardPage):
 
@@ -688,7 +694,6 @@ class ProjectPage(WizardPage):
                 )
                 time_attribute.setEnabled(False)
                 # time_attribute.setEditable(Qt.AutoText)
-
                 date_mask = QStandardItem()
                 date_mask.setFlags(
                     Qt.ItemIsEnabled
@@ -699,7 +704,16 @@ class ProjectPage(WizardPage):
                 date_mask.setEnabled(False)
                 date_mask.setText('YYYY-MM-DD HH:mm')
                 # date_mask.setEditable(Qt.AutoText)
-                return [layer_item, hidden, time_attribute, date_mask]
+                unix_state = QStandardItem()
+                unix_state.setFlags(
+                    Qt.ItemIsEnabled
+                    | Qt.ItemIsSelectable
+                    | Qt.ItemIsUserCheckable
+                    | Qt.ItemIsTristate
+                )
+                unix_state.setEnabled(False)
+                # time_attribute.setEditable(Qt.AutoText)
+                return [layer_item, hidden, time_attribute, date_mask, unix_state]
 
         if self.overlay_layers_tree:
             layers_model = QStandardItemModel()
@@ -713,7 +727,7 @@ class ProjectPage(WizardPage):
                     return self.item(row, column)
             layers_model.columnItem = types.MethodType(columnItem, layers_model)
             layers_model.setHorizontalHeaderLabels(
-                ['Layer', 'Hidden', 'Time Attribute', 'Date Mask']
+                ['Layer', 'Hidden', 'Time Attribute', 'Date Mask', '']
             )
             dialog.treeView.setModel(layers_model)
             layers_root = create_layer_widget(self.overlay_layers_tree)
@@ -748,10 +762,41 @@ class ProjectPage(WizardPage):
             layers_model.itemChanged.connect(layer_item_changed)
 
         def test():
-            print 'click'
+            for l in self.plugin.layers_list():
+                layer_widget = layers_model.findItems(
+                    l.name(),
+                    Qt.MatchExactly | Qt.MatchRecursive
+                )[0]
+                if layers_model.columnItem(layer_widget, 2).text():
+                    selected_attribute = layers_model.columnItem(layer_widget, 2).text()
+                    atribute_index = l.fieldNameIndex(selected_attribute)
+                    for feature in l.getFeatures():
+                        first_value = feature.attributes()[atribute_index]
+                        mask_value, is_suitable = validate(first_value, datetime_mask_array)
+                        # print l.name()
+                        # print mask_value
+                        # print is_suitable
+                        if mask_value != -1:
+                            layer_widget.model().columnItem(layer_widget, 4).setText('is date')
+                        break
 
         layers_model.dataChanged.connect(test)
         # dialog.treeView.clicked.connect(test)
+        # layers_model.itemChanged.connect(test)
+
+        # time validation
+        def validate(date_text, mask):
+            if isinstance(date_text, basestring):
+                for m in mask:
+                    try:
+                        datetime.datetime.strptime(date_text, m[0])
+                    except ValueError:
+                        pass
+                    else:
+                        return m[0], m[2]
+                return -1, ''
+            else:
+                return -1, ''
 
         if self.plugin.last_metadata:
             try:
@@ -1129,11 +1174,11 @@ class ProjectPage(WizardPage):
             return max(set(lst), key=lst.count)
 
         # time format masks
-        datetime_mask_array = [
-            ["%Y-%m-%d", "YYYY-MM-DD", False],
-            ["%d-%m-%Y", "DD-MM-YYYY", False],
-            ["%Y-%m-%dT%H:%M:%S", "YYYY-MM-DDTHH:mm", True]
-        ]
+        # datetime_mask_array = [
+        #     ["%Y-%m-%d", "YYYY-MM-DD", False],
+        #     ["%d-%m-%Y", "DD-MM-YYYY", False],
+        #     ["%Y-%m-%dT%H:%M:%S", "YYYY-MM-DDTHH:mm", True]
+        # ]
 
         unix_time_layer = "UTconvert"  # limited length by 10 characters
 
