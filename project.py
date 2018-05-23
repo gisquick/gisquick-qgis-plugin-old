@@ -657,6 +657,9 @@ class ProjectPage(WizardPage):
         dialog.message_valid_until.setDate(datetime.date.today() + datetime.timedelta(days=1))
 
         def create_layer_widget(node):
+
+            time_active = dialog.create_time_layers.isChecked()
+
             sublayers_widgets = []
             for child in node.children:
                 sublayer_widget = create_layer_widget(child)
@@ -716,9 +719,13 @@ class ProjectPage(WizardPage):
                 # date_mask.setEditable(Qt.AutoText)
 
                 # time_attribute.setEditable(Qt.AutoText)
-                return [layer_item, hidden, unix_state, time_attribute, date_mask]
+                if time_active:
+                    return [layer_item, hidden, unix_state, time_attribute, date_mask]
+                else:
+                    return [layer_item, hidden]
 
         if self.overlay_layers_tree:
+            time_active = dialog.create_time_layers.isChecked()
             layers_model = QStandardItemModel()
             def columnItem(self, item, column):
                 """"Returns item from layers tree at the same row as given
@@ -729,9 +736,15 @@ class ProjectPage(WizardPage):
                 else:
                     return self.item(row, column)
             layers_model.columnItem = types.MethodType(columnItem, layers_model)
-            layers_model.setHorizontalHeaderLabels(
-                ['Layer', 'Hidden', '', 'Time Attribute', 'Date Mask']
-            )
+            if time_active:
+                layers_model.setHorizontalHeaderLabels(
+                    ['Layer', 'Hidden', '', 'Time Attribute', 'Date Mask']
+                )
+            else:
+                layers_model.setHorizontalHeaderLabels(
+                    ['Layer', 'Hidden']
+                )
+
             dialog.treeView.setModel(layers_model)
             layers_root = create_layer_widget(self.overlay_layers_tree)
             while layers_root.rowCount():
@@ -746,15 +759,16 @@ class ProjectPage(WizardPage):
                         vector_layers.append(l)
                 return vector_layers
 
-            dialog.treeView.setItemDelegateForColumn(3, ComboDelegateAttribute(dialog.treeView, get_vector_layers(self.plugin.layers_list())))
-            for row in range(0, layers_model.rowCount()):
-                if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
-                    dialog.treeView.openPersistentEditor(layers_model.index(row, 3))
+            if time_active:
+                dialog.treeView.setItemDelegateForColumn(3, ComboDelegateAttribute(dialog.treeView, get_vector_layers(self.plugin.layers_list())))
+                for row in range(0, layers_model.rowCount()):
+                    if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
+                        dialog.treeView.openPersistentEditor(layers_model.index(row, 3))
 
-            dialog.treeView.setItemDelegateForColumn(4, ComboDelegateMask(dialog.treeView))
-            for row in range(0, layers_model.rowCount()):
-                if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
-                    dialog.treeView.openPersistentEditor(layers_model.index(row, 4))
+                dialog.treeView.setItemDelegateForColumn(4, ComboDelegateMask(dialog.treeView))
+                for row in range(0, layers_model.rowCount()):
+                    if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
+                        dialog.treeView.openPersistentEditor(layers_model.index(row, 4))
 
             def layer_item_changed(item):
                 if item.model().columnItem(item, 0).data(Qt.UserRole): # check if item is layer item
@@ -786,8 +800,8 @@ class ProjectPage(WizardPage):
                         # QMessageBox.critical(QWidget(), "Message", "Selected attribute doesn't contain time values")
                 else:
                     layer_widget.model().columnItem(layer_widget, 2).setText('')
-
-        layers_model.dataChanged.connect(check_first)
+        if time_active:
+            layers_model.dataChanged.connect(check_first)
         # dialog.treeView.clicked.connect(test)
         # layers_model.itemChanged.connect(test)
 
@@ -1333,7 +1347,7 @@ class ProjectPage(WizardPage):
                     if invalid:
                         message += 'Selected attribute in layer: '
                         message += s.get('layer')
-                        message += ' is invalid \n'
+                        message += ' is invalid \n \n'
                     else:
                         message += 'Layer: '
                         message += s.get('layer')
@@ -1341,7 +1355,7 @@ class ProjectPage(WizardPage):
                         message += str(s.get('features'))
                         message += ', processed: '
                         message += str(s.get('processed'))
-                        message += '\n'
+                        message += '\n \n'
             if show_mesage:
                 QMessageBox.information(QWidget(), "Statistics", message)
 
