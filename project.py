@@ -1250,9 +1250,9 @@ class ProjectPage(WizardPage):
                         # print min_max
                         # print valid
                         # print input_datetime_mask
-                        print stat.get('layer')
-                        print stat.get('processed')
-                        print stat.get('features')
+                        # print stat.get('layer')
+                        # print stat.get('processed')
+                        # print stat.get('features')
                         if valid:
                             layer_data['original_time_attribute'] = layers_model.columnItem(layer_widget, 3).text()
                             layer_data['output_datetime_mask'] = layers_model.columnItem(layer_widget, 4).text()
@@ -1322,11 +1322,33 @@ class ProjectPage(WizardPage):
                 else:
                     layer_data['type'] = 'raster'
                 return layer_data, stat
+
+        def create_statistic_message(stat):
+            show_mesage = False
+            message = ''
+            for s in stat:
+                if s is not None:
+                    show_mesage = True
+                    invalid = s.get('invalid', False)
+                    if invalid:
+                        message += 'Selected attribute in layer: '
+                        message += s.get('layer')
+                        message += ' is invalid \n'
+                    else:
+                        message += 'Layer: '
+                        message += s.get('layer')
+                        message += ', total features: '
+                        message += str(s.get('features'))
+                        message += ', processed: '
+                        message += str(s.get('processed'))
+                        message += '\n'
+            if show_mesage:
+                QMessageBox.information(QWidget(), "Statistics", message)
+
         metadata['overlays'] = []
         if self.overlay_layers_tree:
             overlays_data, time_statistics = create_overlays_data(self.overlay_layers_tree)
-            print time_statistics
-            QMessageBox.critical(QWidget(), "Message", "Selected attribute doesn't contain time values")
+            create_statistic_message(time_statistics)
             if overlays_data:
                 metadata['overlays'] = overlays_data.get('layers')
 
