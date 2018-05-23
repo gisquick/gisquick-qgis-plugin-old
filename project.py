@@ -115,6 +115,8 @@ datetime_mask_array = [
     ["%Y-%m-%dT%H:%M:%S", "YYYY-MM-DDTHH:mm", False]
 ]
 
+unix_time_layer = "UTconvert"  # limited length by 10 characters
+
 class ProjectPage(WizardPage):
 
     def _show_messages(self, messages):
@@ -1083,103 +1085,6 @@ class ProjectPage(WizardPage):
             ]
         wfs_layers = self.plugin.project.readListEntry("WFSLayers", "/")[0] or []
 
-
-
-        # # layer attribute time validation
-        # def validate_time_attribute(layer_name, attribute_name, time_mask):
-        #     validation_mask = []
-        #     unique_mask = []
-        #     create_unix = False
-        #     for l in self.plugin.layers_list():
-        #         if l.name() == layer_name:
-        #             # validation
-        #             old_idx = l.fieldNameIndex(attribute_name)
-        #             for feature in l.getFeatures():
-        #                 mask_value, is_suitable = validate(feature.attributes()[old_idx], time_mask)
-        #                 validation_mask.append(mask_value)
-        #                 if mask_value != -1 and mask_value not in unique_mask:
-        #                     unique_mask.append(mask_value)
-        #                 if is_suitable:
-        #                     create_unix = True
-        #             return validation_mask, unique_mask, create_unix
-        #
-        #
-        #
-        # # get min, max value from given layer attribute and specific datetime mask array
-        # def get_min_max_mask(layer_name, attribute_name, val_mask):
-        #     attribute_values = []
-        #     for l in self.plugin.layers_list():
-        #         if l.name() == layer_name:
-        #             attribute_id = l.fieldNameIndex(attribute_name)
-        #             feature_idx = 0
-        #             for feature in l.getFeatures():
-        #                 if val_mask[feature_idx] != -1:
-        #                     unix = time.mktime(datetime.datetime.strptime(feature.attributes()[attribute_id],
-        #                                                                   val_mask[feature_idx]).timetuple())
-        #                     attribute_values.append(unix)
-        #                 feature_idx += 1
-        #     if len(attribute_values) > 0:
-        #         return [min(attribute_values), max(attribute_values)]
-        #
-        # def create_unix_time_attribute(layer_name, time_attribute_name, new_attribute_name, time_format_mask):
-        #     for l in self.plugin.layers_list():
-        #         if l.name() == layer_name:
-        #
-        #             # add new attribute and get its id
-        #             new_idx = create_new_attribute(l, new_attribute_name)
-        #
-        #             # get time attribute index
-        #             old_idx = l.fieldNameIndex(time_attribute_name)
-        #             feature_idx = 0
-        #
-        #             # add data into new attribute
-        #             for feature in l.getFeatures():
-        #                 # check if mask exist
-        #                 if time_format_mask[feature_idx] != -1:
-        #                     unix = time.mktime(datetime.datetime.strptime(feature.attributes()[old_idx],
-        #                                                                   time_format_mask[feature_idx]).timetuple())
-        #                     attr = {new_idx: unix}
-        #                     l.dataProvider().changeAttributeValues({feature_idx: attr})
-        #                 feature_idx += 1
-        #
-        #             l.updateFields()
-        #
-        #             # get min max unix time
-        #             return get_min_max_attribute(l, new_idx)
-        #
-        # # get most common element in list
-        # def most_common(lst):
-        #     return max(set(lst), key=lst.count)
-        #
-        # # time format masks
-        # # datetime_mask_array = [
-        # #     ["%Y-%m-%d", "YYYY-MM-DD", False],
-        # #     ["%d-%m-%Y", "DD-MM-YYYY", False],
-        # #     ["%Y-%m-%dT%H:%M:%S", "YYYY-MM-DDTHH:mm", True]
-        # # ]
-        #
-        #
-
-        #
-        # def remove_values_from_list(the_list, val):
-        #     return [value for value in the_list if value != val]
-        #
-        # def get_time_info(layer_name, attribute_name):
-        #
-        #     validation_mask, unique_mask, create_unix = validate_time_attribute(layer_name, attribute_name, datetime_mask_array)
-        #
-        #     if len(unique_mask) > 1 or create_unix:
-        #         return create_unix_time_attribute(layer_name, attribute_name, unix_time_layer, validation_mask), True, ''
-        #     elif len(unique_mask) == 1 and create_unix is not True:
-        #         mask = most_common(remove_values_from_list(validation_mask, -1))
-        #         return get_min_max_mask(layer_name, attribute_name, validation_mask), True, mask
-        #     else:
-        #         return [], False, ''
-
-
-
-        unix_time_layer = "UTconvert"  # limited length by 10 characters
-
         def validate(date_text, mask):
             if isinstance(date_text, basestring):
                 for m in mask:
@@ -1204,7 +1109,7 @@ class ProjectPage(WizardPage):
                 attribute_layer.updateFields()
             return attribute_layer.fieldNameIndex(attribute_name)
 
-        def get_min_max_attribute(layer_name, attribute_id, mask):
+        def get_min_max_attribute(layer_name, attribute_id):
             attribute_values = []
             for feature in layer_name.getFeatures():
                 if feature.attributes()[attribute_id] != NULL:
@@ -1213,19 +1118,20 @@ class ProjectPage(WizardPage):
             if len(attribute_values) > 0:
                 min_atr = min(attribute_values)
                 max_atr = max(attribute_values)
-                if isinstance(min_atr, unicode):
-                    min_atr = time.mktime(datetime.datetime.strptime(min_atr.encode('latin-1'), mask).timetuple())
-                    max_atr = time.mktime(datetime.datetime.strptime(max_atr.encode('latin-1'), mask).timetuple())
                 return [min_atr, max_atr]
 
         def process_time_layers(layer_name, attribute):
+            statistics = {}
             for l in self.plugin.layers_list():
                 if l.name() == layer_name:
                     atribute_index = l.fieldNameIndex(attribute)
                     feature = list(l.getFeatures())[0]
                     first_value = feature.attributes()[atribute_index]
                     mask_value, is_suitable = validate(first_value, datetime_mask_array)
+                    statistics['layer'] = l.name().encode('latin-1')
 
+                    features = 0
+                    processed = 0
                     # is valid?
                     if mask_value != -1:
                         # create unix?
@@ -1240,34 +1146,61 @@ class ProjectPage(WizardPage):
 
                             # add data into new attribute
                             for feature in l.getFeatures():
-                                unix = time.mktime(datetime.datetime.strptime(feature.attributes()[old_idx],
-                                                                              mask_value).timetuple())
-                                attr = {new_idx: unix}
-                                l.dataProvider().changeAttributeValues({feature_idx: attr})
+
+                                # is attribute string?
+                                if isinstance(feature.attributes()[old_idx], basestring):
+                                    processed += 1
+                                    unix = time.mktime(datetime.datetime.strptime(feature.attributes()[old_idx],
+                                                                                  mask_value).timetuple())
+                                    attr = {new_idx: unix}
+                                    l.dataProvider().changeAttributeValues({feature_idx: attr})
                                 feature_idx += 1
 
                             l.updateFields()
 
+                            statistics['processed'] = processed
+                            statistics['features'] = feature_idx
+
                             # get min max unix time
-                            return get_min_max_attribute(l, new_idx, mask_value), True, ''
+                            return get_min_max_attribute(l, new_idx), True, '', statistics
 
                         else:
-                            return get_min_max_attribute(l, l.fieldNameIndex(attribute), mask_value), True, mask_value
+                            validate_values = []
+                            for feature in l.getFeatures():
+                                features += 1
+                                feature_mask_value, is_suitable = validate(feature.attributes()[atribute_index], datetime_mask_array)
+                                if feature_mask_value == mask_value:
+                                    processed += 1
+                                    validate_values.append(feature.attributes()[atribute_index])
+
+                            if len(validate_values) > 0:
+                                min_atr = min(validate_values)
+                                max_atr = max(validate_values)
+                                min_atr = time.mktime(datetime.datetime.strptime(min_atr.encode('latin-1'), mask_value).timetuple())
+                                max_atr = time.mktime(datetime.datetime.strptime(max_atr.encode('latin-1'), mask_value).timetuple())
+
+                            statistics['processed'] = processed
+                            statistics['features'] = features
+
+                            return [min_atr, max_atr], True, mask_value, statistics
 
                     else:
-                        return [], False, ''
+                        statistics['invalid'] = True
+                        return [], False, '', statistics
 
         def create_overlays_data(node):
             sublayers = []
+            all_statistics = []
             for child in node.children:
-                sublayer = create_overlays_data(child)
+                sublayer, layer_statistics = create_overlays_data(child)
                 if sublayer:
                     sublayers.append(sublayer)
+                    all_statistics.append(layer_statistics)
             if sublayers:
                 return {
                     'name': node.name,
                     'layers': sublayers
-                }
+                }, all_statistics
             elif node.layer:
                 layer = node.layer
                 layers_model = dialog.treeView.model()
@@ -1277,7 +1210,7 @@ class ProjectPage(WizardPage):
                 )[0]
 
                 if layer_widget.checkState() == Qt.Unchecked:
-                    return None
+                    return None, None
 
                 if layer.extent().isFinite() and not layer.extent().isEmpty():
                     try:
@@ -1308,17 +1241,18 @@ class ProjectPage(WizardPage):
                     }
                 }
 
+                stat = None
                 if layers_model.columnItem(layer_widget, 3) is not None:
                     if layers_model.columnItem(layer_widget, 3).text() != "":
-                        min_max, valid, input_datetime_mask = process_time_layers(
+                        min_max, valid, input_datetime_mask, stat = process_time_layers(
                             layer.name(),
                             layers_model.columnItem(layer_widget, 3).text())
-                        print min_max
-                        print valid
-                        print input_datetime_mask
-                        # min_max, valid, input_datetime_mask = get_time_info(
-                        #     layer.name(),
-                        #     layers_model.columnItem(layer_widget, 2).text())
+                        # print min_max
+                        # print valid
+                        # print input_datetime_mask
+                        print stat.get('layer')
+                        print stat.get('processed')
+                        print stat.get('features')
                         if valid:
                             layer_data['original_time_attribute'] = layers_model.columnItem(layer_widget, 3).text()
                             layer_data['output_datetime_mask'] = layers_model.columnItem(layer_widget, 4).text()
@@ -1387,10 +1321,12 @@ class ProjectPage(WizardPage):
                         layer_data['queryable'] = False
                 else:
                     layer_data['type'] = 'raster'
-                return layer_data
+                return layer_data, stat
         metadata['overlays'] = []
         if self.overlay_layers_tree:
-            overlays_data = create_overlays_data(self.overlay_layers_tree)
+            overlays_data, time_statistics = create_overlays_data(self.overlay_layers_tree)
+            print time_statistics
+            QMessageBox.critical(QWidget(), "Message", "Selected attribute doesn't contain time values")
             if overlays_data:
                 metadata['overlays'] = overlays_data.get('layers')
 
