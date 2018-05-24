@@ -724,19 +724,18 @@ class ProjectPage(WizardPage):
                 else:
                     return [layer_item, hidden]
 
-        if self.overlay_layers_tree:
-            time_active = dialog.create_time_layers.isChecked()
-            layers_model = QStandardItemModel()
-            def columnItem(self, item, column):
-                """"Returns item from layers tree at the same row as given
-                item (of any column) and given column index."""
-                row = item.row()
-                if item.parent():
-                    return item.parent().child(row, column)
-                else:
-                    return self.item(row, column)
+        def columnItem(self, item, column):
+            """"Returns item from layers tree at the same row as given
+            item (of any column) and given column index."""
+            row = item.row()
+            if item.parent():
+                return item.parent().child(row, column)
+            else:
+                return self.item(row, column)
+
+        def create_horizontal_labels(create_time):
             layers_model.columnItem = types.MethodType(columnItem, layers_model)
-            if time_active:
+            if create_time:
                 layers_model.setHorizontalHeaderLabels(
                     ['Layer', 'Hidden', '', 'Time Attribute', 'Date Mask']
                 )
@@ -752,14 +751,15 @@ class ProjectPage(WizardPage):
             dialog.treeView.header().setResizeMode(0, QHeaderView.Stretch)
             dialog.treeView.header().setVisible(True)
 
-            def get_vector_layers(all_layers):
-                vector_layers = []
-                for l in all_layers:
-                    if l.type() == QgsMapLayer.VectorLayer:
-                        vector_layers.append(l)
-                return vector_layers
+        def get_vector_layers(all_layers):
+            vector_layers = []
+            for l in all_layers:
+                if l.type() == QgsMapLayer.VectorLayer:
+                    vector_layers.append(l)
+            return vector_layers
 
-            if time_active:
+        def add_time_settings(create_time):
+            if create_time:
                 dialog.treeView.setItemDelegateForColumn(3, ComboDelegateAttribute(dialog.treeView, get_vector_layers(self.plugin.layers_list())))
                 for row in range(0, layers_model.rowCount()):
                     if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
@@ -770,12 +770,19 @@ class ProjectPage(WizardPage):
                     if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
                         dialog.treeView.openPersistentEditor(layers_model.index(row, 4))
 
-            def layer_item_changed(item):
-                if item.model().columnItem(item, 0).data(Qt.UserRole): # check if item is layer item
-                    dependent_items = None
-                    if item.column() == 0:
-                        enabled = item.checkState() == Qt.Checked
-                        item.model().columnItem(item, 1).setEnabled(enabled)
+        def layer_item_changed(item):
+            if item.model().columnItem(item, 0).data(Qt.UserRole): # check if item is layer item
+                dependent_items = None
+                if item.column() == 0:
+                    enabled = item.checkState() == Qt.Checked
+                    item.model().columnItem(item, 1).setEnabled(enabled)
+
+        if self.overlay_layers_tree:
+            time_active = dialog.create_time_layers.isChecked()
+            layers_model = QStandardItemModel()
+
+            create_horizontal_labels(time_active)
+            add_time_settings(time_active)
             layers_model.itemChanged.connect(layer_item_changed)
 
         def check_first():
@@ -800,10 +807,23 @@ class ProjectPage(WizardPage):
                         # QMessageBox.critical(QWidget(), "Message", "Selected attribute doesn't contain time values")
                 else:
                     layer_widget.model().columnItem(layer_widget, 2).setText('')
+
         if time_active:
             layers_model.dataChanged.connect(check_first)
+
         # dialog.treeView.clicked.connect(test)
         # layers_model.itemChanged.connect(test)
+
+        def test():
+            create_time = dialog.create_time_layers.isChecked()
+            layers_model.clear()
+            create_horizontal_labels(create_time)
+            add_time_settings(create_time)
+            layers_model.itemChanged.connect(layer_item_changed)
+            if create_time:
+                layers_model.dataChanged.connect(check_first)
+
+        dialog.create_time_layers.clicked.connect(test)
 
         # time validation
         def validate(date_text, mask):

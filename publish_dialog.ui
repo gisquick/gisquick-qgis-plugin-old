@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
+    <width>761</width>
     <height>582</height>
    </rect>
   </property>
@@ -440,24 +440,11 @@ QGroupBox::title {
           <property name="title">
            <string/>
           </property>
-          <layout class="QFormLayout" name="formLayout_5">
-           <property name="fieldGrowthPolicy">
-            <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
-           </property>
-           <item row="2" column="0">
-            <widget class="QLabel" name="label_mapcache">
-             <property name="text">
-              <string>Use cache</string>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="1">
-            <widget class="QCheckBox" name="use_mapcache">
-             <property name="enabled">
-              <bool>true</bool>
-             </property>
+          <layout class="QGridLayout" name="gridLayout">
+           <item row="1" column="3">
+            <widget class="QCheckBox" name="create_time_layers">
              <property name="sizePolicy">
-              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
@@ -465,12 +452,22 @@ QGroupBox::title {
              <property name="text">
               <string/>
              </property>
-             <property name="checked">
-              <bool>true</bool>
+            </widget>
+           </item>
+           <item row="1" column="2">
+            <widget class="QLabel" name="label">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>        Create time layers</string>
              </property>
             </widget>
            </item>
-           <item row="7" column="0" colspan="2">
+           <item row="3" column="0" colspan="5">
             <widget class="QTreeView" name="treeView">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
@@ -492,17 +489,41 @@ QGroupBox::title {
              </attribute>
             </widget>
            </item>
-           <item row="4" column="1">
-            <widget class="QCheckBox" name="create_time_layers">
+           <item row="1" column="1">
+            <widget class="QCheckBox" name="use_mapcache">
+             <property name="enabled">
+              <bool>true</bool>
+             </property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>12</width>
+               <height>0</height>
+              </size>
+             </property>
              <property name="text">
               <string/>
              </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
             </widget>
            </item>
-           <item row="4" column="0">
-            <widget class="QLabel" name="label">
+           <item row="1" column="0">
+            <widget class="QLabel" name="label_mapcache">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
              <property name="text">
-              <string>Create time layers</string>
+              <string>Use cache</string>
              </property>
             </widget>
            </item>
@@ -532,7 +553,7 @@ QGroupBox::title {
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>724</width>
+             <width>685</width>
              <height>523</height>
             </rect>
            </property>
