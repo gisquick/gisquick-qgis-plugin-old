@@ -463,7 +463,7 @@ QGroupBox::title {
               </sizepolicy>
              </property>
              <property name="text">
-              <string>        Create time layers</string>
+              <string>        Set time layers</string>
              </property>
             </widget>
            </item>
@@ -553,7 +553,7 @@ QGroupBox::title {
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>685</width>
+             <width>376</width>
              <height>523</height>
             </rect>
            </property>
