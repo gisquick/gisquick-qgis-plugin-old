@@ -748,8 +748,8 @@ class ProjectPage(WizardPage):
             return vector_layers
 
         def add_time_settings():
-            dialog.treeView.setItemDelegateForColumn(3, ComboDelegateAttribute(dialog.treeView, get_vector_layers(
-                self.plugin.layers_list())))
+            dialog.treeView.setItemDelegateForColumn(3, ComboDelegateAttribute(dialog, get_vector_layers(
+                self.plugin.layers_list()), layers_model))
             for row in range(0, layers_model.rowCount()):
                 if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
                     dialog.treeView.openPersistentEditor(layers_model.index(row, 3))
@@ -759,7 +759,6 @@ class ProjectPage(WizardPage):
                 if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
                     dialog.treeView.openPersistentEditor(layers_model.index(row, 4))
 
-
         def layer_item_changed(item):
             if item.model().columnItem(item, 0).data(Qt.UserRole): # check if item is layer item
                 dependent_items = None
@@ -767,77 +766,47 @@ class ProjectPage(WizardPage):
                     enabled = item.checkState() == Qt.Checked
                     item.model().columnItem(item, 1).setEnabled(enabled)
 
-        def check_first():
-            if dialog.create_time_layers.isChecked():
-                dialog.treeView.hideColumn(3)
-                # print 'reset#####################'
-                for l in self.plugin.layers_list():
-                    layer_widget = layers_model.findItems(
-                        l.name(),
-                        Qt.MatchExactly | Qt.MatchRecursive
-                    )[0]
-                    if layers_model.columnItem(layer_widget, 3).text() != '':
-                        selected_attribute = layers_model.columnItem(layer_widget, 3).text()
-                        atribute_index = l.fieldNameIndex(selected_attribute)
-                        feature = list(l.getFeatures())[0]
-                        first_value = feature.attributes()[atribute_index]
-                        mask_value, is_suitable = validate(first_value, datetime_mask_array)
-                        if mask_value != -1:
-                            if is_suitable:
-                                layer_widget.model().columnItem(layer_widget, 2).setText('date ok')
-                            else:
-                                layer_widget.model().columnItem(layer_widget, 2).setText('unix create')
-                        else:
-                            layer_widget.model().columnItem(layer_widget, 2).setText('invalid')
-                            # QMessageBox.critical(QWidget(), "Message", "Selected attribute doesn't contain time values")
-                    else:
-                        layer_widget.model().columnItem(layer_widget, 2).setText('')
-                dialog.treeView.showColumn(3)
-
         if self.overlay_layers_tree:
             layers_model = QStandardItemModel()
-
             create_horizontal_labels()
             add_time_settings()
             dialog.treeView.hideColumn(2)
             dialog.treeView.hideColumn(3)
             dialog.treeView.hideColumn(4)
             layers_model.itemChanged.connect(layer_item_changed)
-            layers_model.dataChanged.connect(check_first)
-            # dialog.treeView.clicked.connect(check_first)
-
-        # dialog.treeView.clicked.connect(test)
-
-        # def test():
-        #     print 'check!!'
-        #
-        # layers_model.modelAboutToBeReset.connect(test)
 
         def toggle_timee_settings():
             if dialog.create_time_layers.isChecked():
                 dialog.treeView.showColumn(2)
                 dialog.treeView.showColumn(3)
                 dialog.treeView.showColumn(4)
+
+                for l in self.plugin.layers_list():
+                    layer_widget = layers_model.findItems(
+                        l.name(),
+                        Qt.MatchExactly | Qt.MatchRecursive
+                    )[0]
+                    current_attribute = layer_widget.model().columnItem(layer_widget, 2).text()
+                    layer_widget.model().columnItem(layer_widget, 2).setText('X#$X')
+                    layer_widget.model().columnItem(layer_widget, 2).setText(current_attribute)
             else:
                 dialog.treeView.hideColumn(2)
                 dialog.treeView.hideColumn(3)
                 dialog.treeView.hideColumn(4)
 
-        dialog.create_time_layers.clicked.connect(toggle_timee_settings)
-
-        # time validation
-        def validate(date_text, mask):
-            if isinstance(date_text, basestring):
-                for m in mask:
-                    try:
-                        datetime.datetime.strptime(date_text, m[0])
-                    except ValueError:
-                        pass
+                for l in self.plugin.layers_list():
+                    layer_widget = layers_model.findItems(
+                        l.name(),
+                        Qt.MatchExactly | Qt.MatchRecursive
+                    )[0]
+                    if layer_widget.model().columnItem(layer_widget, 0).checkState() == Qt.Checked:
+                        layer_widget.model().columnItem(layer_widget, 0).setCheckState(Qt.Unchecked)
+                        layer_widget.model().columnItem(layer_widget, 0).setCheckState(Qt.Checked)
                     else:
-                        return m[0], m[2]
-                return -1, ''
-            else:
-                return -1, ''
+                        layer_widget.model().columnItem(layer_widget, 0).setCheckState(Qt.Checked)
+                        layer_widget.model().columnItem(layer_widget, 0).setCheckState(Qt.Unchecked)
+
+        dialog.create_time_layers.clicked.connect(toggle_timee_settings)
 
         if self.plugin.last_metadata:
             try:
@@ -852,6 +821,8 @@ class ProjectPage(WizardPage):
         # at least one base layer must be enabled
         if dialog.default_baselayer.count() < 1:
             dialog.blank.setChecked(True)
+
+
 
     def is_complete(self):
         return self.initialized and self.project_valid and self._num_errors < 1
@@ -1429,29 +1400,66 @@ class ProjectPage(WizardPage):
 
 
 class ComboDelegateAttribute(QItemDelegate):
-
-    # for layer in QgsMapLayer:
-    #     for field in layer.pendingFields():
-    #         print field.name()
     i = 0
 
-    def __init__(self, parent, layers):
+    def __init__(self, parent, layers, layers_model):
         self.layers = layers
-        QItemDelegate.__init__(self, parent)
+        self.dialog = parent
+        self.layers_model = layers_model
+        QItemDelegate.__init__(self, parent.treeView)
 
     def createEditor(self, parent, option, index):
         # print self.i
         # print self.layers[self.i].name()
-        # print QgsMapLayer
 
         combo = QComboBox(parent)
         combo.addItem('')
         if self.layers[self.i].type() == QgsMapLayer.VectorLayer:
             for field in self.layers[self.i].fields():
-                combo.addItem(field.name())
-
+                combo.addItem(field.name(), self.i)
+                combo.setItemData(0, self.layers[self.i].name(), Qt.UserRole + 1)
         self.i += 1
-        # combo.setCurrentIndex(2)
+
+        # time validation
+        def validate(date_text, mask):
+            if isinstance(date_text, basestring):
+                for m in mask:
+                    try:
+                        datetime.datetime.strptime(date_text, m[0])
+                    except ValueError:
+                        pass
+                    else:
+                        return m[0], m[2]
+                return -1, ''
+            else:
+                return -1, ''
+
+        def check_first(selected_index):
+            if self.dialog.create_time_layers.isChecked():
+                for l in self.layers:
+                    layer_widget = self.layers_model.findItems(
+                        l.name(),
+                        Qt.MatchExactly | Qt.MatchRecursive
+                    )[0]
+                    layer_name = combo.itemData(0, Qt.UserRole + 1)
+                    selected_attribute = combo.itemText(selected_index)
+                    if layer_name == l.name():
+                        if selected_attribute != '':
+                            atribute_index = l.fieldNameIndex(selected_attribute)
+                            feature = list(l.getFeatures())[0]
+                            first_value = feature.attributes()[atribute_index]
+                            mask_value, is_suitable = validate(first_value, datetime_mask_array)
+                            if mask_value != -1:
+                                if is_suitable:
+                                    layer_widget.model().columnItem(layer_widget, 2).setText('date ok')
+                                else:
+                                    layer_widget.model().columnItem(layer_widget, 2).setText('unix create')
+                            else:
+                                layer_widget.model().columnItem(layer_widget, 2).setText('invalid')
+                        else:
+                            layer_widget.model().columnItem(layer_widget, 2).setText('')
+
+        combo.currentIndexChanged.connect(check_first)
         return combo
 
     # def setEditorData(self, editor, index):
