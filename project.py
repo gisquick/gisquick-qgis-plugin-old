@@ -774,10 +774,13 @@ class ProjectPage(WizardPage):
             dialog.treeView.hideColumn(3)
             dialog.treeView.hideColumn(4)
             layers_model.itemChanged.connect(layer_item_changed)
+            dialog.validate_time_attribute.setEnabled(False)
+
 
         def toggle_timee_settings():
             if dialog.create_time_layers.isChecked():
-                dialog.treeView.showColumn(2)
+                dialog.validate_time_attribute.setEnabled(True)
+                # dialog.treeView.showColumn(2)
                 dialog.treeView.showColumn(3)
                 dialog.treeView.showColumn(4)
 
@@ -790,7 +793,8 @@ class ProjectPage(WizardPage):
                     layer_widget.model().columnItem(layer_widget, 2).setText('X#$X')
                     layer_widget.model().columnItem(layer_widget, 2).setText(current_attribute)
             else:
-                dialog.treeView.hideColumn(2)
+                dialog.validate_time_attribute.setEnabled(False)
+                # dialog.treeView.hideColumn(2)
                 dialog.treeView.hideColumn(3)
                 dialog.treeView.hideColumn(4)
 
@@ -806,7 +810,30 @@ class ProjectPage(WizardPage):
                         layer_widget.model().columnItem(layer_widget, 0).setCheckState(Qt.Checked)
                         layer_widget.model().columnItem(layer_widget, 0).setCheckState(Qt.Unchecked)
 
+        def toggle_validate_attributes():
+            messages = []
+            messages.append((
+                MSG_WARNING,
+                "Test"
+            ))
+            messages.append((
+                MSG_ERROR,
+                "Test!!!"
+            ))
+
+            print messages
+            if dialog.validate_time_attribute.isChecked():
+                self._show_messages(messages)
+
+                # dialog.treeView.showColumn(2)
+            else:
+                print messages[0]
+                self._remove_messages([messages[0]])
+                # dialog.treeView.hideColumn(2)
+            print 'click'
+
         dialog.create_time_layers.clicked.connect(toggle_timee_settings)
+        dialog.validate_time_attribute.clicked.connect(toggle_validate_attributes)
 
         if self.plugin.last_metadata:
             try:
@@ -1409,7 +1436,7 @@ class ComboDelegateAttribute(QItemDelegate):
         QItemDelegate.__init__(self, parent.treeView)
 
     def createEditor(self, parent, option, index):
-        # print self.i
+        #  self.i
         # print self.layers[self.i].name()
 
         combo = QComboBox(parent)

@@ -467,7 +467,7 @@ QGroupBox::title {
              </property>
             </widget>
            </item>
-           <item row="3" column="0" colspan="5">
+           <item row="3" column="0" colspan="7">
             <widget class="QTreeView" name="treeView">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
@@ -527,6 +527,32 @@ QGroupBox::title {
              </property>
             </widget>
            </item>
+           <item row="1" column="5">
+            <widget class="QCheckBox" name="validate_time_attribute">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="4">
+            <widget class="QLabel" name="label_2">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>        validate time attribute</string>
+             </property>
+            </widget>
+           </item>
           </layout>
          </widget>
         </item>
@@ -553,7 +579,7 @@ QGroupBox::title {
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>376</width>
+             <width>685</width>
              <height>523</height>
             </rect>
            </property>
