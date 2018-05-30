@@ -138,7 +138,7 @@ class ProjectPage(WizardPage):
                     item = QTableWidgetItem(msg_type)
                     if msg_type == MSG_ERROR:
                         item.setForeground(red)
-                        self._num_errors +=1
+                        self._num_errors += 1
                     else:
                         item.setForeground(orange)
                     table.insertRow(row_index) # keep order of statements (see completeChanged)
@@ -294,7 +294,7 @@ class ProjectPage(WizardPage):
         return len(filter(lambda msg: msg[0] == MSG_ERROR, messages)) == 0
 
     def validate(self):
-        if self.project_valid and self.is_page_config_valid():
+        if self.project_valid and self.is_page_config_valid() and self.combo_delegate_attribute._num_errors == 0:
             self.plugin.metadata.update(
                 self.get_metadata()
             )
@@ -466,7 +466,7 @@ class ProjectPage(WizardPage):
             dialog.max_scale.setCurrentIndex(0)
 
     def time_validate(self, date_text, mask):
-        """Time validation based on given mask"""
+        """Time validation based on given mask containing datetime formats"""
         if isinstance(date_text, basestring):
             for m in mask:
                 try:
@@ -499,9 +499,10 @@ class ProjectPage(WizardPage):
         self._remove_messages(messages)
 
     def set_validation_message(self, layer_name, num_time_val, num_suitable_val, index):
+        """Add validation warning/error messages"""
         messages = []
         if num_time_val == 0:
-            print 'invalid'
+            # print 'invalid'
             message = 'Selected time attribute in layer "'
             message += layer_name
             message += '" does not contain any valid date.'
@@ -511,9 +512,10 @@ class ProjectPage(WizardPage):
             ))
             self._show_messages(messages)
         elif num_suitable_val == index:
-            print 'valid'
+            pass
+            # print 'valid'
         else:
-            print 'unix'
+            # print 'unix'
             message = 'Selected time attribute in layer "'
             message += layer_name
             message += '" contains inconsistent time values.'
@@ -524,6 +526,7 @@ class ProjectPage(WizardPage):
             self._show_messages(messages)
 
     def initialize(self):
+
         dialog = self.dialog
         dialog.tabWidget.setCurrentIndex(0)
         dialog.info_table.model().rowsInserted.connect(self._page.completeChanged)
@@ -805,9 +808,10 @@ class ProjectPage(WizardPage):
                     vector_layers.append(l)
             return vector_layers
 
+
+
         def add_time_settings():
-            dialog.treeView.setItemDelegateForColumn(3, ComboDelegateAttribute(dialog, get_vector_layers(
-                self.plugin.layers_list()), layers_model, self._num_errors))
+            dialog.treeView.setItemDelegateForColumn(3, self.combo_delegate_attribute)
             for row in range(0, layers_model.rowCount()):
                 if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
                     dialog.treeView.openPersistentEditor(layers_model.index(row, 3))
@@ -826,6 +830,10 @@ class ProjectPage(WizardPage):
 
         if self.overlay_layers_tree:
             layers_model = QStandardItemModel()
+
+            self.combo_delegate_attribute = ComboDelegateAttribute(dialog, get_vector_layers(
+                self.plugin.layers_list()), layers_model)
+
             create_horizontal_labels()
             add_time_settings()
             dialog.treeView.hideColumn(2)
@@ -834,17 +842,16 @@ class ProjectPage(WizardPage):
             layers_model.itemChanged.connect(layer_item_changed)
             dialog.validate_time_attribute.setEnabled(False)
 
-
         def toggle_timee_settings():
             if dialog.create_time_layers.isChecked():
                 dialog.validate_time_attribute.setEnabled(True)
                 dialog.treeView.showColumn(3)
                 dialog.treeView.showColumn(4)
             else:
+                dialog.validate_time_attribute.setChecked(False)
                 dialog.validate_time_attribute.setEnabled(False)
                 dialog.treeView.hideColumn(3)
                 dialog.treeView.hideColumn(4)
-
             for l in self.plugin.layers_list():
                 layer_widget = layers_model.findItems(
                     l.name(),
@@ -854,48 +861,7 @@ class ProjectPage(WizardPage):
                 layer_widget.model().columnItem(layer_widget, 2).setText('X#$X')
                 layer_widget.model().columnItem(layer_widget, 2).setText(current_attribute)
 
-        def check_attribute_values(layer_name, selected_attribute):
-            print 'check'
-            num_time_val = 0
-            num_suitable_val = 0
-            index = 0
-            if self.dialog.validate_time_attribute.isChecked():
-                for l in get_vector_layers(self.plugin.layers_list()):
-                    if layer_name == l.name():
-                        if selected_attribute != '':
-                            atribute_index = l.fieldNameIndex(selected_attribute)
-                            for feature in l.getFeatures():
-                                index += 1
-                                feature_value = feature.attributes()[atribute_index]
-                                mask_value, is_suitable = self.time_validate(feature_value, datetime_mask_array)
-                                if mask_value != -1:
-                                    num_time_val += 1
-                                if is_suitable:
-                                    num_suitable_val += 1
-                            self.remove_messages(l.name())
-                            self.set_validation_message(l.name(), num_time_val, num_suitable_val, index)
-                        else:
-                            print 'empty'
-                            self.remove_messages(l.name())
-
-        def toggle_attribute_validation():
-            if dialog.validate_time_attribute.isChecked():
-                # validate selected time attributes
-                for l in self.plugin.layers_list():
-                    layer_widget = layers_model.findItems(
-                        l.name(),
-                        Qt.MatchExactly | Qt.MatchRecursive
-                    )[0]
-                    current_attribute = layer_widget.model().columnItem(layer_widget, 3).text()
-                    if len(current_attribute) > 0:
-                        check_attribute_values(l.name(), current_attribute)
-            else:
-                # remove validation messages
-                for l in self.plugin.layers_list():
-                    self.remove_messages(l.name())
-
         dialog.create_time_layers.clicked.connect(toggle_timee_settings)
-        dialog.validate_time_attribute.clicked.connect(toggle_attribute_validation)
 
         if self.plugin.last_metadata:
             try:
@@ -1202,13 +1168,15 @@ class ProjectPage(WizardPage):
                 return [min_atr, max_atr]
 
         def process_time_layers(layer_name, attribute):
+            print dialog.validate_time_attribute.isChecked()
             statistics = {}
             for l in self.plugin.layers_list():
                 if l.name() == layer_name:
+
                     atribute_index = l.fieldNameIndex(attribute)
                     feature = list(l.getFeatures())[0]
                     first_value = feature.attributes()[atribute_index]
-                    mask_value, is_suitable = self.validate(first_value, datetime_mask_array)
+                    mask_value, is_suitable = self.time_validate(first_value, datetime_mask_array)
                     statistics['layer'] = l.name().encode('latin-1')
 
                     features = 0
@@ -1249,7 +1217,7 @@ class ProjectPage(WizardPage):
                             validate_values = []
                             for feature in l.getFeatures():
                                 features += 1
-                                feature_mask_value, is_suitable = self.validate(feature.attributes()[atribute_index], datetime_mask_array)
+                                feature_mask_value, is_suitable = self.time_validate(feature.attributes()[atribute_index], datetime_mask_array)
                                 if feature_mask_value == mask_value:
                                     processed += 1
                                     validate_values.append(feature.attributes()[atribute_index])
@@ -1325,6 +1293,7 @@ class ProjectPage(WizardPage):
                 stat = None
                 if dialog.create_time_layers.isChecked() and layers_model.columnItem(layer_widget, 3) is not None:
                     if layers_model.columnItem(layer_widget, 3).text() != "":
+                        print "validation ERRORS", self.combo_delegate_attribute._num_errors
                         min_max, valid, input_datetime_mask, stat = process_time_layers(
                             layer.name(),
                             layers_model.columnItem(layer_widget, 3).text())
@@ -1478,12 +1447,33 @@ class ProjectPage(WizardPage):
 class ComboDelegateAttribute(QItemDelegate, ProjectPage):
     i = 0
 
-    def __init__(self, parent, layers, layers_model, _num_errors):
+    def __init__(self, parent, layers, layers_model):
         self.layers = layers
         self.dialog = parent
+        self._num_errors = 0
         self.layers_model = layers_model
-        self._num_errors = _num_errors
+        self.dialog.validate_time_attribute.clicked.connect(self.toggle_attribute_validation)
+        self.dialog.create_time_layers.clicked.connect(self.toggle_timee_settings)
         QItemDelegate.__init__(self, parent.treeView)
+
+    def validate_time_atribute(self, l, selected_attribute):
+        num_time_val = 0
+        num_suitable_val = 0
+        index = 0
+        if selected_attribute != '':
+            atribute_index = l.fieldNameIndex(selected_attribute)
+            for feature in l.getFeatures():
+                index += 1
+                feature_value = feature.attributes()[atribute_index]
+                mask_value, is_suitable = self.time_validate(feature_value, datetime_mask_array)
+                if mask_value != -1:
+                    num_time_val += 1
+                if is_suitable:
+                    num_suitable_val += 1
+            self.remove_messages(l.name())
+            self.set_validation_message(l.name(), num_time_val, num_suitable_val, index)
+        else:
+            self.remove_messages(l.name())
 
     def createEditor(self, parent, option, index):
         #  self.i
@@ -1498,56 +1488,37 @@ class ComboDelegateAttribute(QItemDelegate, ProjectPage):
         self.i += 1
 
         def check_attribute_values(selected_index):
-            print 'check'
-            num_time_val = 0
-            num_suitable_val = 0
-            index = 0
             if self.dialog.validate_time_attribute.isChecked():
                 for l in self.layers:
                     layer_name = combo.itemData(0, Qt.UserRole + 1)
                     selected_attribute = combo.itemText(selected_index)
                     if layer_name == l.name():
-                        if selected_attribute != '':
-                            atribute_index = l.fieldNameIndex(selected_attribute)
-                            for feature in l.getFeatures():
-                                index += 1
-                                feature_value = feature.attributes()[atribute_index]
-                                mask_value, is_suitable = self.time_validate(feature_value, datetime_mask_array)
-                                if mask_value != -1:
-                                    num_time_val += 1
-                                if is_suitable:
-                                    num_suitable_val += 1
-                            self.remove_messages(l.name())
-                            self.set_validation_message(l.name(), num_time_val, num_suitable_val, index)
-                        else:
-                            print 'empty'
-                            self.remove_messages(l.name())
-
-        # for l in self.layers:
-                #     layer_widget = self.layers_model.findItems(
-                #         l.name(),
-                #         Qt.MatchExactly | Qt.MatchRecursive
-                #     )[0]
-                #     layer_name = combo.itemData(0, Qt.UserRole + 1)
-                #     selected_attribute = combo.itemText(selected_index)
-                #     if layer_name == l.name():
-                #         if selected_attribute != '':
-                #             atribute_index = l.fieldNameIndex(selected_attribute)
-                #             feature = list(l.getFeatures())[0]
-                #             first_value = feature.attributes()[atribute_index]
-                #             mask_value, is_suitable = validate(first_value, datetime_mask_array)
-                #             if mask_value != -1:
-                #                 if is_suitable:
-                #                     layer_widget.model().columnItem(layer_widget, 2).setText('date ok')
-                #                 else:
-                #                     layer_widget.model().columnItem(layer_widget, 2).setText('unix create')
-                #             else:
-                #                 layer_widget.model().columnItem(layer_widget, 2).setText('invalid')
-                #         else:
-                #             layer_widget.model().columnItem(layer_widget, 2).setText('')
-
+                        self.validate_time_atribute(l, selected_attribute)
         combo.currentIndexChanged.connect(check_attribute_values)
         return combo
+
+    def toggle_attribute_validation(self):
+        if self.dialog.validate_time_attribute.isChecked():
+            # validate selected time attributes
+            for l in self.layers:
+                layer_widget = self.layers_model.findItems(
+                    l.name(),
+                    Qt.MatchExactly | Qt.MatchRecursive
+                )[0]
+                current_attribute = layer_widget.model().columnItem(layer_widget, 3).text()
+                if len(current_attribute) > 0:
+                    if self.dialog.validate_time_attribute.isChecked():
+                        self.validate_time_atribute(l, current_attribute)
+        else:
+            # remove validation messages
+            for l in self.layers:
+                self.remove_messages(l.name())
+
+    def toggle_timee_settings(self):
+        if not self.dialog.create_time_layers.isChecked():
+            # remove validation messages
+            for l in self.layers:
+                self.remove_messages(l.name())
 
     # def setEditorData(self, editor, index):
     #     text = index.data()
