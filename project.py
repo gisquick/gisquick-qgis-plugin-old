@@ -1172,20 +1172,29 @@ class ProjectPage(WizardPage):
             statistics = {}
             for l in self.plugin.layers_list():
                 if l.name() == layer_name:
+                    if dialog.validate_time_attribute.isChecked():
+                        print "VALIDATE LAYER: ", l.name()
+                        valid_state = self.combo_delegate_attribute.validation_results.get(l.name())
+                        if valid_state == 'valid':
+                            attribute_index = l.fieldNameIndex(attribute)
+                            feature = list(l.getFeatures())[0]
+                            first_value = feature.attributes()[attribute_index]
+                            mask_value, is_suitable = self.time_validate(first_value, datetime_mask_array)
 
-                    atribute_index = l.fieldNameIndex(attribute)
-                    feature = list(l.getFeatures())[0]
-                    first_value = feature.attributes()[atribute_index]
-                    mask_value, is_suitable = self.time_validate(first_value, datetime_mask_array)
-                    statistics['layer'] = l.name().encode('latin-1')
+                            values = []
+                            for feature in l.getFeatures():
+                                values.append(feature.attributes()[attribute_index])
 
-                    features = 0
-                    processed = 0
-                    # is valid?
-                    if mask_value != -1:
-                        # create unix?
-                        if is_suitable is not True:
+                            min_atr = min(values)
+                            max_atr = max(values)
+                            min_atr = time.mktime(
+                                datetime.datetime.strptime(min_atr.encode('latin-1'), mask_value).timetuple())
+                            max_atr = time.mktime(
+                                datetime.datetime.strptime(max_atr.encode('latin-1'), mask_value).timetuple())
 
+                            return [min_atr, max_atr], True, mask_value
+
+                        elif valid_state == 'unix':
                             # add new attribute and get its id
                             new_idx = create_new_attribute(l, unix_time_layer)
 
@@ -1195,47 +1204,111 @@ class ProjectPage(WizardPage):
 
                             # add data into new attribute
                             for feature in l.getFeatures():
-
+                                feature_mask_value, is_suitable = self.time_validate(feature.attributes()[old_idx], datetime_mask_array)
                                 # is attribute string?
-                                if isinstance(feature.attributes()[old_idx], basestring):
-                                    processed += 1
+                                if feature_mask_value != -1:
                                     unix = time.mktime(datetime.datetime.strptime(feature.attributes()[old_idx],
-                                                                                  mask_value).timetuple())
+                                                                                  feature_mask_value).timetuple())
                                     attr = {new_idx: unix}
                                     l.dataProvider().changeAttributeValues({feature_idx: attr})
                                 feature_idx += 1
 
                             l.updateFields()
 
-                            statistics['processed'] = processed
                             statistics['features'] = feature_idx
 
                             # get min max unix time
-                            return get_min_max_attribute(l, new_idx), True, '', statistics
-
-                        else:
-                            validate_values = []
-                            for feature in l.getFeatures():
-                                features += 1
-                                feature_mask_value, is_suitable = self.time_validate(feature.attributes()[atribute_index], datetime_mask_array)
-                                if feature_mask_value == mask_value:
-                                    processed += 1
-                                    validate_values.append(feature.attributes()[atribute_index])
-
-                            if len(validate_values) > 0:
-                                min_atr = min(validate_values)
-                                max_atr = max(validate_values)
-                                min_atr = time.mktime(datetime.datetime.strptime(min_atr.encode('latin-1'), mask_value).timetuple())
-                                max_atr = time.mktime(datetime.datetime.strptime(max_atr.encode('latin-1'), mask_value).timetuple())
-
-                            statistics['processed'] = processed
-                            statistics['features'] = features
-
-                            return [min_atr, max_atr], True, mask_value, statistics
+                            return get_min_max_attribute(l, new_idx), True, ''
 
                     else:
-                        statistics['invalid'] = True
-                        return [], False, '', statistics
+                        print "DOONT VALIDATE"
+                        attribute_index = l.fieldNameIndex(attribute)
+                        feature = list(l.getFeatures())[0]
+                        first_value = feature.attributes()[attribute_index]
+                        mask_value, is_suitable = self.time_validate(first_value, datetime_mask_array)
+
+                        if mask_value == -1:
+                            return [], False, ''
+                        else:
+                            values = []
+                            for feature in l.getFeatures():
+                                values.append(feature.attributes()[attribute_index])
+
+                            try:
+                                min_atr = min(values)
+                                max_atr = max(values)
+                                min_atr = time.mktime(
+                                    datetime.datetime.strptime(min_atr.encode('latin-1'), mask_value).timetuple())
+                                max_atr = time.mktime(
+                                    datetime.datetime.strptime(max_atr.encode('latin-1'), mask_value).timetuple())
+
+                                return [min_atr, max_atr], True, mask_value
+                            except ValueError:
+                                return [], False, ''
+
+                    # atribute_index = l.fieldNameIndex(attribute)
+                    # feature = list(l.getFeatures())[0]
+                    # first_value = feature.attributes()[atribute_index]
+                    # mask_value, is_suitable = self.time_validate(first_value, datetime_mask_array)
+                    # statistics['layer'] = l.name().encode('latin-1')
+                    #
+                    # features = 0
+                    # processed = 0
+                    # # is valid?
+                    # if mask_value != -1:
+                    #     # create unix?
+                    #     if is_suitable is not True:
+                    #
+                    #         # add new attribute and get its id
+                    #         new_idx = create_new_attribute(l, unix_time_layer)
+                    #
+                    #         # get time attribute index
+                    #         old_idx = l.fieldNameIndex(attribute)
+                    #         feature_idx = 0
+                    #
+                    #         # add data into new attribute
+                    #         for feature in l.getFeatures():
+                    #
+                    #             # is attribute string?
+                    #             if isinstance(feature.attributes()[old_idx], basestring):
+                    #                 processed += 1
+                    #                 unix = time.mktime(datetime.datetime.strptime(feature.attributes()[old_idx],
+                    #                                                               mask_value).timetuple())
+                    #                 attr = {new_idx: unix}
+                    #                 l.dataProvider().changeAttributeValues({feature_idx: attr})
+                    #             feature_idx += 1
+                    #
+                    #         l.updateFields()
+                    #
+                    #         statistics['processed'] = processed
+                    #         statistics['features'] = feature_idx
+                    #
+                    #         # get min max unix time
+                    #         return get_min_max_attribute(l, new_idx), True, '', statistics
+                    #
+                    #     else:
+                    #         validate_values = []
+                    #         for feature in l.getFeatures():
+                    #             features += 1
+                    #             feature_mask_value, is_suitable = self.time_validate(feature.attributes()[atribute_index], datetime_mask_array)
+                    #             if feature_mask_value == mask_value:
+                    #                 processed += 1
+                    #                 validate_values.append(feature.attributes()[atribute_index])
+                    #
+                    #         if len(validate_values) > 0:
+                    #             min_atr = min(validate_values)
+                    #             max_atr = max(validate_values)
+                    #             min_atr = time.mktime(datetime.datetime.strptime(min_atr.encode('latin-1'), mask_value).timetuple())
+                    #             max_atr = time.mktime(datetime.datetime.strptime(max_atr.encode('latin-1'), mask_value).timetuple())
+                    #
+                    #         statistics['processed'] = processed
+                    #         statistics['features'] = features
+                    #
+                    #         return [min_atr, max_atr], True, mask_value, statistics
+                    #
+                    # else:
+                    #     statistics['invalid'] = True
+                    #     return [], False, '', statistics
 
         def create_overlays_data(node):
             sublayers = []
@@ -1293,8 +1366,7 @@ class ProjectPage(WizardPage):
                 stat = None
                 if dialog.create_time_layers.isChecked() and layers_model.columnItem(layer_widget, 3) is not None:
                     if layers_model.columnItem(layer_widget, 3).text() != "":
-                        print "validation ERRORS", self.combo_delegate_attribute._num_errors
-                        min_max, valid, input_datetime_mask, stat = process_time_layers(
+                        min_max, valid, input_datetime_mask = process_time_layers(
                             layer.name(),
                             layers_model.columnItem(layer_widget, 3).text())
                         # print min_max
@@ -1451,6 +1523,7 @@ class ComboDelegateAttribute(QItemDelegate, ProjectPage):
         self.layers = layers
         self.dialog = parent
         self._num_errors = 0
+        self.validation_results = {}
         self.layers_model = layers_model
         self.dialog.validate_time_attribute.clicked.connect(self.toggle_attribute_validation)
         self.dialog.create_time_layers.clicked.connect(self.toggle_timee_settings)
@@ -1472,7 +1545,14 @@ class ComboDelegateAttribute(QItemDelegate, ProjectPage):
                     num_suitable_val += 1
             self.remove_messages(l.name())
             self.set_validation_message(l.name(), num_time_val, num_suitable_val, index)
+            if num_time_val == 0:
+                self.validation_results[l.name()] = 'invalid'
+            elif num_suitable_val == index:
+                self.validation_results[l.name()] = 'valid'
+            else:
+                self.validation_results[l.name()] = 'unix'
         else:
+            del self.validation_results[l.name()]
             self.remove_messages(l.name())
 
     def createEditor(self, parent, option, index):
