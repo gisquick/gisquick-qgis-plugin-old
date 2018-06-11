@@ -10,9 +10,9 @@ import os
 import shutil
 
 # Import the PyQt and QGIS libraries
-from qgis.core import *
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from qgis.core import QgsVectorDataProvider, QgsRasterDataProvider, QgsDataSourceURI
+from PyQt4.QtGui import QWizard, QFileDialog, QMessageBox
+from PyQt4.QtCore import Qt
 
 from utils import opt_value, create_formatted_tree
 from wizard import WizardPage

@@ -15,9 +15,22 @@ from decimal import Decimal
 from urlparse import parse_qs
 
 # Import the PyQt and QGIS libraries
-from qgis.core import *
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from qgis.core import (QgsMapLayer,
+                       QgsPalLayerSettings,
+                       NULL,
+                       QgsField,
+                       QgsError,
+                       QgsComposerLabel)
+from PyQt4.QtGui import (QItemDelegate,
+                         QColor,
+                         QTableWidgetItem,
+                         QStandardItemModel,
+                         QStandardItem,
+                         QHeaderView,
+                         QComboBox,
+                         QMessageBox,
+                         QWidget)
+from PyQt4.QtCore import Qt
 from qgis.PyQt.QtCore import QVariant
 from PyQt4.QtXml import QDomDocument
 
@@ -1247,70 +1260,6 @@ class ProjectPage(WizardPage):
                                 return [], False, ''
                             except:
                                 return [], False, ''
-
-                    # atribute_index = l.fieldNameIndex(attribute)
-                    # feature = list(l.getFeatures())[0]
-                    # first_value = feature.attributes()[atribute_index]
-                    # mask_value, is_suitable = self.time_validate(first_value, datetime_mask_array)
-                    # statistics['layer'] = l.name().encode('latin-1')
-                    #
-                    # features = 0
-                    # processed = 0
-                    # # is valid?
-                    # if mask_value != -1:
-                    #     # create unix?
-                    #     if is_suitable is not True:
-                    #
-                    #         # add new attribute and get its id
-                    #         new_idx = create_new_attribute(l, unix_time_layer)
-                    #
-                    #         # get time attribute index
-                    #         old_idx = l.fieldNameIndex(attribute)
-                    #         feature_idx = 0
-                    #
-                    #         # add data into new attribute
-                    #         for feature in l.getFeatures():
-                    #
-                    #             # is attribute string?
-                    #             if isinstance(feature.attributes()[old_idx], basestring):
-                    #                 processed += 1
-                    #                 unix = time.mktime(datetime.datetime.strptime(feature.attributes()[old_idx],
-                    #                                                               mask_value).timetuple())
-                    #                 attr = {new_idx: unix}
-                    #                 l.dataProvider().changeAttributeValues({feature_idx: attr})
-                    #             feature_idx += 1
-                    #
-                    #         l.updateFields()
-                    #
-                    #         statistics['processed'] = processed
-                    #         statistics['features'] = feature_idx
-                    #
-                    #         # get min max unix time
-                    #         return get_min_max_attribute(l, new_idx), True, '', statistics
-                    #
-                    #     else:
-                    #         validate_values = []
-                    #         for feature in l.getFeatures():
-                    #             features += 1
-                    #             feature_mask_value, is_suitable = self.time_validate(feature.attributes()[atribute_index], datetime_mask_array)
-                    #             if feature_mask_value == mask_value:
-                    #                 processed += 1
-                    #                 validate_values.append(feature.attributes()[atribute_index])
-                    #
-                    #         if len(validate_values) > 0:
-                    #             min_atr = min(validate_values)
-                    #             max_atr = max(validate_values)
-                    #             min_atr = time.mktime(datetime.datetime.strptime(min_atr.encode('latin-1'), mask_value).timetuple())
-                    #             max_atr = time.mktime(datetime.datetime.strptime(max_atr.encode('latin-1'), mask_value).timetuple())
-                    #
-                    #         statistics['processed'] = processed
-                    #         statistics['features'] = features
-                    #
-                    #         return [min_atr, max_atr], True, mask_value, statistics
-                    #
-                    # else:
-                    #     statistics['invalid'] = True
-                    #     return [], False, '', statistics
 
         def create_overlays_data(node):
             sublayers = []

@@ -8,8 +8,8 @@
 
 # Import the PyQt and QGIS libraries
 from qgis.core import *
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from PyQt4.QtGui import QListWidgetItem, QMessageBox, QTreeWidgetItem
+from PyQt4.QtCore import Qt
 
 from wizard import WizardPage
 

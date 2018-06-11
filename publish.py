@@ -11,11 +11,11 @@ import json
 import codecs
 
 # Import the PyQt and QGIS libraries
-from qgis.core import *
-from PyQt4.QtGui import *
+from qgis.core import QgsMapLayerRegistry, QgsProviderRegistry
+from PyQt4.QtGui import QWizard, QTreeWidgetItem
 from PyQt4.QtCore import *
 
-from utils import *
+from utils import opt_value, create_formatted_tree, Decimal
 from wizard import WizardPage
 
 

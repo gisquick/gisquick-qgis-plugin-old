@@ -18,14 +18,14 @@ from decimal import Decimal
 
 # Import the PyQt and QGIS libraries
 import PyQt4.uic
-from qgis.core import *
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from qgis.core import QgsMapLayer, QgsProject
+from PyQt4.QtGui import QAction, QIcon, QMessageBox
+from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
 
 # Initialize Qt resources from file resources.py
 import resources_rc
 
-from utils import *
+from utils import scales_to_resolutions, resolutions_to_scales, to_decimal_array
 from project import ProjectPage
 from topics import TopicsPage
 from publish import PublishPage
