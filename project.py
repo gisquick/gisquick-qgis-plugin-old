@@ -5,6 +5,13 @@
  Publish your projects into Gisquick application
  ***************************************************************************/
 """
+from __future__ import print_function
+from __future__ import absolute_import
+from future import standard_library
+standard_library.install_aliases()
+from builtins import zip
+from builtins import str
+from builtins import range
 
 import os
 import re
@@ -12,7 +19,7 @@ import types
 import datetime
 import time
 from decimal import Decimal
-from urlparse import parse_qs
+from urllib.parse import parse_qs
 
 # Import the PyQt and QGIS libraries
 from qgis.core import (QgsMapLayer,
@@ -20,22 +27,16 @@ from qgis.core import (QgsMapLayer,
                        NULL,
                        QgsField,
                        QgsError,
-                       QgsComposerLabel)
-from PyQt4.QtGui import (QItemDelegate,
-                         QColor,
-                         QTableWidgetItem,
-                         QStandardItemModel,
-                         QStandardItem,
-                         QHeaderView,
-                         QComboBox,
-                         QMessageBox,
-                         QWidget)
-from PyQt4.QtCore import Qt
+                       # QgsComposerLabel
+                       )
+from qgis.PyQt.QtWidgets import QItemDelegate, QTableWidgetItem, QHeaderView, QComboBox, QMessageBox, QWidget
+from qgis.PyQt.QtGui import QColor, QStandardItemModel, QStandardItem
+from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtCore import QVariant
-from PyQt4.QtXml import QDomDocument
+from qgis.PyQt.QtXml import QDomDocument
 
-from utils import to_decimal_array, opt_value
-from wizard import WizardPage
+from .utils import to_decimal_array, opt_value
+from .wizard import WizardPage
 
 AUTHENTICATION_OPTIONS = (
     'all',
@@ -227,7 +228,7 @@ class ProjectPage(WizardPage):
             ))
 
         self._show_messages(messages)
-        return len(filter(lambda msg: msg[0] == MSG_ERROR, messages)) == 0
+        return len([msg for msg in messages if msg[0] == MSG_ERROR]) == 0
 
     def is_page_config_valid(self):
         """Checks project configuration on this page and shows list of
@@ -249,10 +250,7 @@ class ProjectPage(WizardPage):
             self._remove_messages([(MSG_ERROR, msg)])
 
         def publish_resolutions(resolutions, min_resolution=min_resolution, max_resolution=max_resolution):
-            return filter(
-                lambda res: res >= min_resolution and res <= max_resolution,
-                resolutions
-            )
+            return [res for res in resolutions if res >= min_resolution and res <= max_resolution]
 
         base_layers = [
             layer for layer in self.plugin.layers_list()
@@ -304,7 +302,7 @@ class ProjectPage(WizardPage):
 
         if messages:
             self._show_messages(messages)
-        return len(filter(lambda msg: msg[0] == MSG_ERROR, messages)) == 0
+        return len([msg for msg in messages if msg[0] == MSG_ERROR]) == 0
 
     def validate(self):
         if self.project_valid and self.is_page_config_valid() and self.combo_delegate_attribute._num_errors == 0:
@@ -480,7 +478,7 @@ class ProjectPage(WizardPage):
 
     def time_validate(self, date_text, mask):
         """Time validation based on given mask containing datetime formats"""
-        if isinstance(date_text, basestring):
+        if isinstance(date_text, str):
             for m in mask:
                 try:
                     datetime.datetime.strptime(date_text, m[0])
@@ -879,7 +877,7 @@ class ProjectPage(WizardPage):
         if self.plugin.last_metadata:
             try:
                 self.setup_page(self.plugin.last_metadata)
-            except StandardError as e:
+            except Exception as e:
                 QMessageBox.warning(
                     None,
                     'Warning',
@@ -1007,7 +1005,7 @@ class ProjectPage(WizardPage):
         min_resolution = self.dialog.min_scale.itemData(self.dialog.min_scale.currentIndex())
         max_resolution = self.dialog.max_scale.itemData(self.dialog.max_scale.currentIndex())
         def publish_resolutions(resolutions, min_resolution=min_resolution, max_resolution=max_resolution):
-            return filter(lambda res: res >= min_resolution and res <= max_resolution, resolutions)
+            return [res for res in resolutions if res >= min_resolution and res <= max_resolution]
 
         project_tile_resolutions = set(self.plugin.project_layers_resolutions())
         # collect set of all resolutions from special base layers and WMSC base layers
@@ -1079,14 +1077,8 @@ class ProjectPage(WizardPage):
                         return None
                     min_resolution = layer_resolutions[-1]
                     max_resolution = layer_resolutions[0]
-                    upper_resolutions = filter(
-                        lambda res: res > max_resolution,
-                        project_tile_resolutions
-                    )
-                    lower_resolutions = filter(
-                        lambda res: res < min_resolution,
-                        project_tile_resolutions
-                    )
+                    upper_resolutions = [res for res in project_tile_resolutions if res > max_resolution]
+                    lower_resolutions = [res for res in project_tile_resolutions if res < min_resolution]
                     layer_data.update({
                         'type': 'wmsc',
                         'min_resolution': min_resolution,
@@ -1139,7 +1131,7 @@ class ProjectPage(WizardPage):
                 special_base_layer['apikey'] = dialog.mapbox_apikey.text()
                 if mapid.startswith('mapbox.'):
                     prefix, title = mapid.split('.', 1)
-                    title = ' '.join(map(lambda x: x.title(), title.split('-')))
+                    title = ' '.join([x.title() for x in title.split('-')])
                     special_base_layer['title'] += ' {}'.format(title)
             elif special_base_layer['name'].startswith('BING'):
                 special_base_layer['apikey'] = dialog.bing_apikey.text()
@@ -1181,12 +1173,14 @@ class ProjectPage(WizardPage):
                 return [min_atr, max_atr]
 
         def process_time_layers(layer_name, attribute):
-            print dialog.validate_time_attribute.isChecked()
+            # fix_print_with_import
+            print(dialog.validate_time_attribute.isChecked())
             statistics = {}
             for l in self.plugin.layers_list():
                 if l.name() == layer_name:
                     if dialog.validate_time_attribute.isChecked():
-                        print "VALIDATE LAYER: ", l.name()
+                        # fix_print_with_import
+                        print("VALIDATE LAYER: ", l.name())
                         valid_state = self.combo_delegate_attribute.validation_results.get(l.name())
                         if valid_state == 'valid':
                             attribute_index = l.fieldNameIndex(attribute)
@@ -1234,7 +1228,8 @@ class ProjectPage(WizardPage):
                             return get_min_max_attribute(l, new_idx), True, ''
 
                     else:
-                        print "DOONT VALIDATE"
+                        # fix_print_with_import
+                        print("DOONT VALIDATE")
                         attribute_index = l.fieldNameIndex(attribute)
                         feature = list(l.getFeatures())[0]
                         first_value = feature.attributes()[attribute_index]
@@ -1320,9 +1315,12 @@ class ProjectPage(WizardPage):
                         min_max, valid, input_datetime_mask = process_time_layers(
                             layer.name(),
                             layers_model.columnItem(layer_widget, 3).text())
-                        print min_max
-                        print valid
-                        print input_datetime_mask
+                        # fix_print_with_import
+                        print(min_max)
+                        # fix_print_with_import
+                        print(valid)
+                        # fix_print_with_import
+                        print(input_datetime_mask)
                         # print stat.get('layer')
                         # print stat.get('processed')
                         # print stat.get('features')
@@ -1443,7 +1441,7 @@ class ProjectPage(WizardPage):
                     'height': map_rect.height()
                 },
                 'labels': [
-                    item.id() for item in composition.items()
+                    item.id() for item in list(composition.items())
                         if isinstance(item, QgsComposerLabel) and item.id()
                 ]
             }

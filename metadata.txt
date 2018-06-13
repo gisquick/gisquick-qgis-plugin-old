@@ -1,6 +1,6 @@
 [general]
 name=Gisquick plugin
-qgisMinimumVersion=2.14
+qgisMinimumVersion=3.0
 description=Publish your QGIS projects in Gisquick
 category=Web
 version=1.1

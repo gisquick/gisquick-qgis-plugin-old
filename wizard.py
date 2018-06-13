@@ -5,6 +5,7 @@
  Publish your projects into Gisquick application
  ***************************************************************************/
 """
+from builtins import object
 
 class WizardPage(object):
     """Base class for a wizard page of the publishing dialog.

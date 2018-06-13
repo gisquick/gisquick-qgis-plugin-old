@@ -5,18 +5,21 @@
  Publish your projects into Gisquick application
  ***************************************************************************/
 """
+from __future__ import absolute_import
+from builtins import str
+from builtins import map
 
 import os
 import json
 import codecs
 
 # Import the PyQt and QGIS libraries
-from qgis.core import QgsMapLayerRegistry, QgsProviderRegistry
-from PyQt4.QtGui import QWizard, QTreeWidgetItem
-from PyQt4.QtCore import *
+from qgis.core import QgsProviderRegistry  # QgsMapLayerRegistry
+from qgis.PyQt.QtWidgets import QWizard, QTreeWidgetItem
+from PyQt5.QtCore import *
 
-from utils import opt_value, create_formatted_tree, Decimal
-from wizard import WizardPage
+from .utils import opt_value, create_formatted_tree, Decimal
+from .wizard import WizardPage
 
 
 class PublishPage(WizardPage):
@@ -30,12 +33,12 @@ class PublishPage(WizardPage):
         """Creates configuration summary of published project."""
 
         def format_template_data(data):
-            iterator = data.iteritems() if type(data) == dict else enumerate(data)
+            iterator = iter(list(data.items())) if type(data) == dict else enumerate(data)
             for key, value in iterator:
                 if type(value) in (list, tuple):
                     if value and isinstance(value[0], Decimal):
                         value = [u'{0:.5f}'.format(v) for v in value]
-                    data[key] = u', '.join(map(unicode, value))
+                    data[key] = u', '.join(map(str, value))
             return data
 
         metadata = self.plugin.metadata
@@ -75,11 +78,8 @@ class PublishPage(WizardPage):
             else:
                 resolutions = layer_data['resolutions']
                 if 'min_resolution' in layer_data:
-                    resolutions = filter(
-                        lambda res: res >= layer_data['min_resolution'] and
-                            res <= layer_data['max_resolution'],
-                        resolutions
-                    )
+                    resolutions = [res for res in resolutions if res >= layer_data['min_resolution'] and
+                            res <= layer_data['max_resolution']]
                 scales = self.plugin.resolutions_to_scales(resolutions)
                 # Regular QGIS base layers
                 if layer_data['type'] not in ('blank', 'osm', 'mapbox', 'bing'):
@@ -321,13 +321,10 @@ class PublishPage(WizardPage):
         for layer_data in metadata['overlays']:
             collect_overlays_names(layer_data)
 
-        map_layers = QgsMapLayerRegistry.instance().mapLayers()
+        # map_layers = QgsMapLayerRegistry.instance().mapLayers()
         providers_registry = QgsProviderRegistry.instance()
         for layer_name in overlays_names:
-            layer = filter(
-              lambda l: layer_name in (l.name(), l.shortName()),
-              map_layers.values()
-            )[0]
+            # layer = [l for l in list(map_layers.values()) if layer_name in (l.name(), l.shortName())][0]
             if layer.dataProvider().name() == "spatialite":
                 provider = providers_registry.provider(
                     "spatialite",

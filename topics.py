@@ -5,13 +5,15 @@
  Publish your projects into Gisquick application
  ***************************************************************************/
 """
+from __future__ import absolute_import
+from builtins import range
 
 # Import the PyQt and QGIS libraries
 from qgis.core import *
-from PyQt4.QtGui import QListWidgetItem, QMessageBox, QTreeWidgetItem
-from PyQt4.QtCore import Qt
+from qgis.PyQt.QtWidgets import QListWidgetItem, QMessageBox, QTreeWidgetItem
+from qgis.PyQt.QtCore import Qt
 
-from wizard import WizardPage
+from .wizard import WizardPage
 
 
 class TopicsPage(WizardPage):

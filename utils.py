@@ -5,9 +5,11 @@
  Publish your projects into Gisquick application
  ***************************************************************************/
 """
+from builtins import str
+from builtins import map
 
 from decimal import Decimal
-from PyQt4.QtGui import QTreeWidgetItem
+from qgis.PyQt.QtWidgets import QTreeWidgetItem
 
 def to_decimal_array(value):
     """Converts array of numbers or comma-separated string to array of Decimal values.
@@ -18,7 +20,7 @@ def to_decimal_array(value):
     Returns:
         List[Decimal]: array with Decimal numbers
     """
-    if isinstance(value, basestring):
+    if isinstance(value, str):
         return [Decimal(res_string.strip())for res_string in value.split(',')]
     else:
         return [Decimal(res) for res in value]
@@ -95,23 +97,23 @@ def create_formatted_tree(root, data, template_data=None):
         format_data: data dictionary for formatting
     """
     def format_template_data(data):
-        iterator = data.iteritems() if type(data) == dict else enumerate(data)
+        iterator = iter(list(data.items())) if type(data) == dict else enumerate(data)
         for key, value in iterator:
             if type(value) in (list, tuple):
                 if value and isinstance(value[0], Decimal):
                     value = [u'{0:.5f}'.format(v) for v in value]
-                data[key] = u', '.join(map(unicode, value))
+                data[key] = u', '.join(map(str, value))
         return data
 
     def add_item(root, text, template_data):
         item = QTreeWidgetItem(root)
         if template_data:
             if type(template_data) == dict:
-                item.setText(0, unicode(text).format(**template_data))
+                item.setText(0, str(text).format(**template_data))
             else:
-                item.setText(0, unicode(text).format(*template_data))
+                item.setText(0, str(text).format(*template_data))
         else:
-            item.setText(0, unicode(text))
+            item.setText(0, str(text))
 
         return item
 
@@ -128,7 +130,7 @@ def create_formatted_tree(root, data, template_data=None):
             else:
                 item = add_item(root, data_item, formatted_data)
     elif isinstance(data, dict):
-        for key, key_data in data.iteritems():
+        for key, key_data in list(data.items()):
             item = add_item(root, key, formatted_data)
             create_formatted_tree(item, key_data, formatted_data)
     else:

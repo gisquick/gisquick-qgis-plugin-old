@@ -5,6 +5,10 @@
  Publish your projects into Gisquick application
  ***************************************************************************/
 """
+from __future__ import absolute_import
+from future import standard_library
+standard_library.install_aliases()
+from builtins import object
 
 import os
 import sys
@@ -13,27 +17,28 @@ import time
 import json
 import codecs
 import subprocess
-import ConfigParser
+import configparser
 from decimal import Decimal
 
 # Import the PyQt and QGIS libraries
-import PyQt4.uic
+import PyQt5.uic
 from qgis.core import QgsMapLayer, QgsProject
-from PyQt4.QtGui import QAction, QIcon, QMessageBox
-from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
+from qgis.PyQt.QtWidgets import QAction, QMessageBox
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
 
 # Initialize Qt resources from file resources.py
-import resources_rc
+from . import resources_rc
 
-from utils import scales_to_resolutions, resolutions_to_scales, to_decimal_array
-from project import ProjectPage
-from topics import TopicsPage
-from publish import PublishPage
-from confirmation import ConfirmationPage
+from .utils import scales_to_resolutions, resolutions_to_scales, to_decimal_array
+from .project import ProjectPage
+from .topics import TopicsPage
+from .publish import PublishPage
+from .confirmation import ConfirmationPage
 
 GISLAB_VERSION_FILE = "/etc/gislab_version"
 
-__metadata__ = ConfigParser.ConfigParser()
+__metadata__ = configparser.ConfigParser()
 __metadata__.read(os.path.join(os.path.dirname(__file__), 'metadata.txt'))
 
 
@@ -104,7 +109,7 @@ class Node(object):
         fn(self)
 
 
-class WebGisPlugin:
+class WebGisPlugin(object):
 
     dialog = None
     project = None
@@ -220,10 +225,7 @@ class WebGisPlugin:
             max_res_exclusive, min_res_inclusive = self.scales_to_resolutions(
                 [max_scale_exclusive, min_scale_inclusive]
             )
-            return filter(
-                lambda res: res >= min_res_inclusive and res < max_res_exclusive,
-                resolutions
-            )
+            return [res for res in resolutions if res >= min_res_inclusive and res < max_res_exclusive]
         return resolutions
 
     def wmsc_layer_resolutions(self, layer):
@@ -258,10 +260,10 @@ class WebGisPlugin:
         # collect set of all resolutions from WMSC base layers
         base_layers = {
             layer.id(): layer
-            for layer in self.iface.legendInterface().layers()
+            for layer in QgsProject.instance().mapLayers().values()
                 if self.is_base_layer_for_publish(layer)
         }
-        for layer in base_layers.itervalues():
+        for layer in list(base_layers.values()):
             layer_resolutions = self.wmsc_layer_resolutions(layer)
             if layer_resolutions:
                 project_tile_resolutions.update(layer_resolutions)
@@ -271,7 +273,7 @@ class WebGisPlugin:
         if ok and scales:
             scales = [int(scale.split(":")[-1]) for scale in scales]
             # filter duplicit scales
-            scales = filter(lambda scale: scale not in wmsc_layers_scales, scales)
+            scales = [scale for scale in scales if scale not in wmsc_layers_scales]
             project_tile_resolutions.update(
                 self.scales_to_resolutions(sorted(scales, reverse=True))
             )
@@ -285,7 +287,8 @@ class WebGisPlugin:
         Returns:
             List[qgis.core.QgsMapLayer]: project's layers
         """
-        return self.iface.legendInterface().layers()
+        # legend_iface = self.iface.legendInterface().layers()
+        return [layer for layer in QgsProject.instance().mapLayers().values()]
 
     def _get_project_layers_tree(self):
         """Returns root layer node of all project layers.
@@ -293,16 +296,17 @@ class WebGisPlugin:
         Returns:
             webgisplugin.Node: project layers tree (root node)
         """
-        legend_iface = self.iface.legendInterface()
-        layers_reletionship = legend_iface.groupLayerRelationship()
-        layers_root = Node('')
-        for parent_name, child_names in layers_reletionship:
-            parent = layers_root.find(parent_name)
-            if not parent:
-                parent = Node(parent_name)
-                layers_root.append(parent)
-            parent.append(*child_names)
-        return layers_root
+        # legend_iface = self.iface.legendInterface()
+        # layers_reletionship = legend_iface.groupLayerRelationship()
+        # layers_root = Node('')
+        # for parent_name, child_names in layers_reletionship:
+        #     parent = layers_root.find(parent_name)
+        #     if not parent:
+        #         parent = Node(parent_name)
+        #         layers_root.append(parent)
+        #     parent.append(*child_names)
+        # return layers_root
+        return Node('')
 
     def get_project_base_layers(self):
         """Returns root layer node of all base layers.
@@ -427,7 +431,7 @@ class WebGisPlugin:
         self.last_metadata = self._last_metadata() or {}
 
         dialog_filename = os.path.join(self.plugin_dir, "publish_dialog.ui")
-        dialog = PyQt4.uic.loadUi(dialog_filename)
+        dialog = PyQt5.uic.loadUi(dialog_filename)
         self.dialog = dialog
 
         # wrap qt wizard pages (pure GUI defined in qt creator/designer) with wrapper
