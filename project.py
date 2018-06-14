@@ -306,7 +306,7 @@ class ProjectPage(WizardPage):
         return len([msg for msg in messages if msg[0] == MSG_ERROR]) == 0
 
     def validate(self):
-        if self.project_valid and self.is_page_config_valid() and self.combo_delegate_attribute._num_errors == 0:
+        if self.project_valid and self.is_page_config_valid(): # and self.combo_delegate_attribute._num_errors == 0
             self.plugin.metadata.update(
                 self.get_metadata()
             )
@@ -730,19 +730,18 @@ class ProjectPage(WizardPage):
         dialog.message_valid_until.setDate(datetime.date.today() + datetime.timedelta(days=1))
 
         def create_layer_widget(node):
-            print('node', node)
             sublayers_widgets = []
-            for child in node.children():
+            for child in node.children:
                 sublayer_widget = create_layer_widget(child)
                 if sublayer_widget:
                     sublayers_widgets.append(sublayer_widget)
             if sublayers_widgets:
-                group_item = QStandardItem(node.name())
+                group_item = QStandardItem(node.name)
                 for child in sublayers_widgets:
                     group_item.appendRow(child)
                 return group_item
-            elif node.layer():
-                layer = node.layer()
+            elif node.layer:
+                layer = node.layer
                 is_vector_layer = layer.type() == QgsMapLayer.VectorLayer
                 layer_item = QStandardItem(layer.name())
                 layer_item.setFlags(
@@ -981,7 +980,7 @@ class ProjectPage(WizardPage):
             ],
             'projection': {
                 'code': project_crs.authid(),
-                'is_geographic': project_crs.geographicFlag(),
+                'is_geographic': project_crs.isGeographic(),
                 'proj4': project_crs.toProj4()
             },
             'units': self.plugin.map_units(),
@@ -1145,7 +1144,8 @@ class ProjectPage(WizardPage):
 
         non_identifiable_layers = project.readListEntry("Identify", "/disabledLayers")[0] or []
 
-        if self.plugin.iface.layerTreeCanvasBridge().hasCustomLayerOrder():
+        projectInstance = QgsProject.instance()
+        if projectInstance.layerTreeRoot().hasCustomLayerOrder():
             overlays_order = self.plugin.iface.layerTreeCanvasBridge().customLayerOrder()
         else:
             overlays_order = [
@@ -1301,7 +1301,7 @@ class ProjectPage(WizardPage):
                     'provider_type': layer.providerType(),
                     'extent': layer_extent,
                     'projection': layer.crs().authid(),
-                    'visible': self.plugin.iface.legendInterface().isLayerVisible(layer),
+                    'visible': self.plugin.iface.layerTreeView().layerTreeModel().rootGroup().findLayer(layer).itemVisibilityChecked(),
                     'queryable': not is_hidden and layer.id() not in non_identifiable_layers,
                     'hidden': is_hidden,
                     'drawing_order': overlays_order.index(layer.id()),
@@ -1319,11 +1319,11 @@ class ProjectPage(WizardPage):
                             layer.name(),
                             layers_model.columnItem(layer_widget, 3).text())
                         # fix_print_with_import
-                        print(min_max)
+                        # print(min_max)
                         # fix_print_with_import
-                        print(valid)
+                        # print(valid)
                         # fix_print_with_import
-                        print(input_datetime_mask)
+                        # print(input_datetime_mask)
                         # print stat.get('layer')
                         # print stat.get('processed')
                         # print stat.get('features')
@@ -1479,8 +1479,7 @@ class ComboDelegateAttribute(QItemDelegate, ProjectPage):
         self.layers_model = layers_model
         self.dialog.validate_time_attribute.clicked.connect(self.toggle_attribute_validation)
         self.dialog.create_time_layers.clicked.connect(self.toggle_timee_settings)
-        QItemDelegate.__init__(self, parent.treeView)
-
+        # QItemDelegate.__init__(self, parent.treeView)
 
     def validate_time_atribute(self, l, selected_attribute):
         num_time_val = 0

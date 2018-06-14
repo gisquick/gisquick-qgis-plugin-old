@@ -400,8 +400,34 @@ class WebGisPlugin(object):
         #             print('Group', child.name())
         #             overlays_tree(child)
 
+        # root_node = self.iface.layerTreeView().layerTreeModel().rootGroup()
+        # return root_node
+
+        def overlays_tree(tree_node):
+            if isinstance(tree_node, QgsLayerTreeLayer):
+                layer = tree_node.layer()
+                if self.is_overlay_layer_for_publish(layer):
+                    return Node(layer.id(), layer=layer)
+            else:
+                children = []
+                for child_tree_node in tree_node.children():
+                    node = overlays_tree(child_tree_node)
+                    if node:
+                        children.append(node)
+                if children:
+                    return Node(tree_node.name(), children)
+
         root_node = self.iface.layerTreeView().layerTreeModel().rootGroup()
-        return root_node
+        tree = overlays_tree(root_node)
+
+        def dump_node(node, depth=0):
+            print('  ' * depth, node.name)
+            if node.children:
+                for child in node.children:
+                    dump_node(child, depth + 1)
+
+        dump_node(tree)
+        return tree
 
     def _new_metadata(self):
         """Create a new metadata object with initial data.
