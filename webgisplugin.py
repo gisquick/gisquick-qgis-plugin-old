@@ -296,17 +296,18 @@ class WebGisPlugin(object):
         Returns:
             webgisplugin.Node: project layers tree (root node)
         """
-        # legend_iface = self.iface.legendInterface()
-        # layers_reletionship = legend_iface.groupLayerRelationship()
-        # layers_root = Node('')
-        # for parent_name, child_names in layers_reletionship:
-        #     parent = layers_root.find(parent_name)
-        #     if not parent:
-        #         parent = Node(parent_name)
-        #         layers_root.append(parent)
-        #     parent.append(*child_names)
-        # return layers_root
-        return Node('')
+        print([layer for layer in QgsProject.instance().mapLayers().values()])
+
+        legend_iface = self.iface.legendInterface()
+        layers_reletionship = legend_iface.groupLayerRelationship()
+        layers_root = Node('')
+        for parent_name, child_names in layers_reletionship:
+            parent = layers_root.find(parent_name)
+            if not parent:
+                parent = Node(parent_name)
+                layers_root.append(parent)
+            parent.append(*child_names)
+        return layers_root
 
     def get_project_base_layers(self):
         """Returns root layer node of all base layers.

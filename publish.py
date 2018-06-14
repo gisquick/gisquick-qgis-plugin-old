@@ -14,7 +14,7 @@ import json
 import codecs
 
 # Import the PyQt and QGIS libraries
-from qgis.core import QgsProviderRegistry  # QgsMapLayerRegistry
+from qgis.core import QgsProviderRegistry, QgsProject
 from qgis.PyQt.QtWidgets import QWizard, QTreeWidgetItem
 from PyQt5.QtCore import *
 
@@ -321,10 +321,10 @@ class PublishPage(WizardPage):
         for layer_data in metadata['overlays']:
             collect_overlays_names(layer_data)
 
-        # map_layers = QgsMapLayerRegistry.instance().mapLayers()
+        map_layers = QgsProject.instance().mapLayers()
         providers_registry = QgsProviderRegistry.instance()
         for layer_name in overlays_names:
-            # layer = [l for l in list(map_layers.values()) if layer_name in (l.name(), l.shortName())][0]
+            layer = [l for l in list(map_layers.values()) if layer_name in (l.name(), l.shortName())][0]
             if layer.dataProvider().name() == "spatialite":
                 provider = providers_registry.provider(
                     "spatialite",
