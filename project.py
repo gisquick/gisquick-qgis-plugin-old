@@ -27,6 +27,7 @@ from qgis.core import (QgsMapLayer,
                        NULL,
                        QgsField,
                        QgsError,
+                       QgsProject
                        # QgsComposerLabel
                        )
 from qgis.PyQt.QtWidgets import QItemDelegate, QTableWidgetItem, QHeaderView, QComboBox, QMessageBox, QWidget
@@ -211,7 +212,7 @@ class ProjectPage(WizardPage):
                 u"Project is using custom CRS which is currently not supported."
             ))
 
-        all_layers = [layer.name() for layer in self.plugin.layers_list()]
+        all_layers = self.plugin.layers_list()
         if len(all_layers) != len(set(all_layers)):
             messages.append((
                 MSG_ERROR,
@@ -729,18 +730,19 @@ class ProjectPage(WizardPage):
         dialog.message_valid_until.setDate(datetime.date.today() + datetime.timedelta(days=1))
 
         def create_layer_widget(node):
+            print('node', node)
             sublayers_widgets = []
-            for child in node.children:
+            for child in node.children():
                 sublayer_widget = create_layer_widget(child)
                 if sublayer_widget:
                     sublayers_widgets.append(sublayer_widget)
             if sublayers_widgets:
-                group_item = QStandardItem(node.name)
+                group_item = QStandardItem(node.name())
                 for child in sublayers_widgets:
                     group_item.appendRow(child)
                 return group_item
-            elif node.layer:
-                layer = node.layer
+            elif node.layer():
+                layer = node.layer()
                 is_vector_layer = layer.type() == QgsMapLayer.VectorLayer
                 layer_item = QStandardItem(layer.name())
                 layer_item.setFlags(
@@ -807,9 +809,10 @@ class ProjectPage(WizardPage):
 
             dialog.treeView.setModel(layers_model)
             layers_root = create_layer_widget(self.overlay_layers_tree)
+            print('layers_root', layers_root)
             while layers_root.rowCount():
                 layers_model.appendRow(layers_root.takeRow(0))
-            dialog.treeView.header().setResizeMode(0, QHeaderView.Stretch)
+            dialog.treeView.header().setSectionResizeMode(0, QHeaderView.Stretch)
             dialog.treeView.header().setVisible(True)
 
         def get_vector_layers(all_layers):
@@ -822,10 +825,10 @@ class ProjectPage(WizardPage):
 
 
         def add_time_settings():
-            dialog.treeView.setItemDelegateForColumn(3, self.combo_delegate_attribute)
-            for row in range(0, layers_model.rowCount()):
-                if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
-                    dialog.treeView.openPersistentEditor(layers_model.index(row, 3))
+            # dialog.treeView.setItemDelegateForColumn(3, self.combo_delegate_attribute)
+            # for row in range(0, layers_model.rowCount()):
+            #     if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
+            #         dialog.treeView.openPersistentEditor(layers_model.index(row, 3))
 
             dialog.treeView.setItemDelegateForColumn(4, ComboDelegateMask(dialog.treeView))
             for row in range(0, layers_model.rowCount()):
@@ -842,8 +845,8 @@ class ProjectPage(WizardPage):
         if self.overlay_layers_tree:
             layers_model = QStandardItemModel()
 
-            self.combo_delegate_attribute = ComboDelegateAttribute(dialog, get_vector_layers(
-                self.plugin.layers_list()), layers_model)
+            # self.combo_delegate_attribute = ComboDelegateAttribute(dialog, get_vector_layers(
+            #     self.plugin.layers_list()), layers_model)
 
             create_horizontal_labels()
             add_time_settings()
@@ -1477,6 +1480,7 @@ class ComboDelegateAttribute(QItemDelegate, ProjectPage):
         self.dialog.validate_time_attribute.clicked.connect(self.toggle_attribute_validation)
         self.dialog.create_time_layers.clicked.connect(self.toggle_timee_settings)
         QItemDelegate.__init__(self, parent.treeView)
+
 
     def validate_time_atribute(self, l, selected_attribute):
         num_time_val = 0

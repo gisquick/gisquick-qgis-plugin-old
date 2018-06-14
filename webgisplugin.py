@@ -22,7 +22,7 @@ from decimal import Decimal
 
 # Import the PyQt and QGIS libraries
 import PyQt5.uic
-from qgis.core import QgsMapLayer, QgsProject
+from qgis.core import QgsMapLayer, QgsProject, QgsLayerTreeLayer
 from qgis.PyQt.QtWidgets import QAction, QMessageBox
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
@@ -290,24 +290,34 @@ class WebGisPlugin(object):
         # legend_iface = self.iface.legendInterface().layers()
         return [layer for layer in QgsProject.instance().mapLayers().values()]
 
-    def _get_project_layers_tree(self):
-        """Returns root layer node of all project layers.
-
-        Returns:
-            webgisplugin.Node: project layers tree (root node)
-        """
-        print([layer for layer in QgsProject.instance().mapLayers().values()])
-
-        legend_iface = self.iface.legendInterface()
-        layers_reletionship = legend_iface.groupLayerRelationship()
-        layers_root = Node('')
-        for parent_name, child_names in layers_reletionship:
-            parent = layers_root.find(parent_name)
-            if not parent:
-                parent = Node(parent_name)
-                layers_root.append(parent)
-            parent.append(*child_names)
-        return layers_root
+    # def _get_project_layers_tree(self):
+    #     """Returns root layer node of all project layers.
+    #
+    #     Returns:
+    #         webgisplugin.Node: project layers tree (root node)
+    #     """
+    #     legend_iface = [layer for layer in QgsProject.instance().mapLayers().values()]
+    #     print(legend_iface)
+    #     # print('parent', legend_iface[0].parent())
+    #
+    #     layers_reletionship = [(legend_iface[0].parent(), ['']), (legend_iface[1].parent(), [''])]
+    #
+    #     # legend_iface = self.iface.legendInterface()
+    #     # layers_reletionship = legend_iface.groupLayerRelationship()
+    #     layers_root = Node('')
+    #     for parent_name, child_names in layers_reletionship:
+    #         print(parent_name)
+    #         print(child_names)
+    #         parent = layers_root.find(parent_name)
+    #         if not parent:
+    #             parent = Node(parent_name)
+    #             print(parent)
+    #             print(layers_root)
+    #             layers_root.append(parent)
+    #             print(layers_root)
+    #         parent.append(*child_names)
+    #     # print(layers_root)
+    #     return layers_root
 
     def get_project_base_layers(self):
         """Returns root layer node of all base layers.
@@ -315,27 +325,41 @@ class WebGisPlugin(object):
         Returns:
             webgisplugin.Node: project base layers tree (root node)
         """
-        # build complete layers tree
-        layers_root = self._get_project_layers_tree()
+        # # build complete layers tree
+        # layers_root = self._get_project_layers_tree()
+        #
+        # # filter to base layers only
+        # base_layers = {
+        #     layer.id(): layer
+        #     for layer in self.layers_list()
+        #         if self.is_base_layer_for_publish(layer)
+        # }
+        #
+        # def base_tree(node):
+        #     base_children = []
+        #     for child in node.children:
+        #         base_child = base_tree(child)
+        #         if base_child:
+        #             base_children.append(base_child)
+        #     if base_children:
+        #         return Node(node.name, base_children)
+        #     elif not node.children and node.name in base_layers:
+        #         return Node(node.name, layer=base_layers[node.name])
+        # return base_tree(layers_root)
 
-        # filter to base layers only
-        base_layers = {
-            layer.id(): layer
-            for layer in self.layers_list()
-                if self.is_base_layer_for_publish(layer)
-        }
+        def overlays_tree(tree_node):
+            overlay_children = []
+            for child in tree_node.children():
+                if isinstance(child, QgsLayerTreeLayer):
+                    layer = child.layer()
+                    print('Layer:', layer.name())
+                else:
+                    print('Group', child.name())
+                    overlays_tree(child)
 
-        def base_tree(node):
-            base_children = []
-            for child in node.children:
-                base_child = base_tree(child)
-                if base_child:
-                    base_children.append(base_child)
-            if base_children:
-                return Node(node.name, base_children)
-            elif not node.children and node.name in base_layers:
-                return Node(node.name, layer=base_layers[node.name])
-        return base_tree(layers_root)
+        root_node = self.iface.layerTreeView().layerTreeModel().rootGroup()
+        return overlays_tree(root_node)
+
 
     def get_project_layers(self):
         """Returns root layer node of project's overlay layers.
@@ -343,27 +367,41 @@ class WebGisPlugin(object):
         Returns:
             webgisplugin.Node: project overlay layers tree (root node)
         """
-        # build complete layers tree
-        layers_root = self._get_project_layers_tree()
-
+        # # build complete layers tree
+        # layers_root = self._get_project_layers_tree()
+        #
         # filter to overlay layers only
-        overlay_layers = {
-            layer.id(): layer
-            for layer in self.layers_list()
-                if self.is_overlay_layer_for_publish(layer)
-        }
-        def overlays_tree(node):
-            overlay_children = []
-            for child in node.children:
-                overlay_child = overlays_tree(child)
-                if overlay_child:
-                    overlay_children.append(overlay_child)
-            if overlay_children:
-                return Node(node.name, overlay_children)
-            elif not node.children and node.name in overlay_layers:
-                return Node(node.name, layer=overlay_layers[node.name])
+        # overlay_layers = {
+        #     layer.id(): layer
+        #     for layer in self.layers_list()
+        #         if self.is_overlay_layer_for_publish(layer)
+        # }
+        # def overlays_tree(node):
+        #     overlay_children = []
+        #     for child in node.children:
+        #         overlay_child = overlays_tree(child)
+        #         if overlay_child:
+        #             overlay_children.append(overlay_child)
+        #     if overlay_children:
+        #         return Node(node.name, overlay_children)
+        #     elif not node.children and node.name in overlay_layers:
+        #         return Node(node.name, layer=overlay_layers[node.name])
+        #
+        # return overlays_tree(layers_root)
 
-        return overlays_tree(layers_root)
+        # def overlays_tree(tree_node):
+        #     overlay_children = []
+        #     for child in tree_node.children():
+        #         if isinstance(child, QgsLayerTreeLayer):
+        #             layer = child.layer()
+        #             print('Layer:', layer.name())
+        #             overlay_children.append(child)
+        #         else:
+        #             print('Group', child.name())
+        #             overlays_tree(child)
+
+        root_node = self.iface.layerTreeView().layerTreeModel().rootGroup()
+        return root_node
 
     def _new_metadata(self):
         """Create a new metadata object with initial data.
