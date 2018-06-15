@@ -306,7 +306,7 @@ class ProjectPage(WizardPage):
         return len([msg for msg in messages if msg[0] == MSG_ERROR]) == 0
 
     def validate(self):
-        if self.project_valid and self.is_page_config_valid(): # and self.combo_delegate_attribute._num_errors == 0
+        if self.project_valid and self.is_page_config_valid() and self.combo_delegate_attribute._num_errors == 0:
             self.plugin.metadata.update(
                 self.get_metadata()
             )
@@ -824,10 +824,10 @@ class ProjectPage(WizardPage):
 
 
         def add_time_settings():
-            # dialog.treeView.setItemDelegateForColumn(3, self.combo_delegate_attribute)
-            # for row in range(0, layers_model.rowCount()):
-            #     if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
-            #         dialog.treeView.openPersistentEditor(layers_model.index(row, 3))
+            dialog.treeView.setItemDelegateForColumn(3, self.combo_delegate_attribute)
+            for row in range(0, layers_model.rowCount()):
+                if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
+                    dialog.treeView.openPersistentEditor(layers_model.index(row, 3))
 
             dialog.treeView.setItemDelegateForColumn(4, ComboDelegateMask(dialog.treeView))
             for row in range(0, layers_model.rowCount()):
@@ -844,8 +844,8 @@ class ProjectPage(WizardPage):
         if self.overlay_layers_tree:
             layers_model = QStandardItemModel()
 
-            # self.combo_delegate_attribute = ComboDelegateAttribute(dialog, get_vector_layers(
-            #     self.plugin.layers_list()), layers_model)
+            self.combo_delegate_attribute = ComboDelegateAttribute(dialog, get_vector_layers(
+                self.plugin.layers_list()), layers_model)
 
             create_horizontal_labels()
             add_time_settings()
@@ -1159,10 +1159,10 @@ class ProjectPage(WizardPage):
                     return m[1]
 
         def create_new_attribute(attribute_layer, attribute_name):
-            if attribute_layer.fieldNameIndex(attribute_name) == -1:
+            if attribute_layer.fields().lookupField(attribute_name) == -1:
                 attribute_layer.dataProvider().addAttributes([QgsField(attribute_name, QVariant.Int)])
                 attribute_layer.updateFields()
-            return attribute_layer.fieldNameIndex(attribute_name)
+            return attribute_layer.fields().lookupField(attribute_name)
 
         def get_min_max_attribute(layer_name, attribute_id):
             attribute_values = []
@@ -1176,17 +1176,14 @@ class ProjectPage(WizardPage):
                 return [min_atr, max_atr]
 
         def process_time_layers(layer_name, attribute):
-            # fix_print_with_import
-            print(dialog.validate_time_attribute.isChecked())
             statistics = {}
             for l in self.plugin.layers_list():
                 if l.name() == layer_name:
                     if dialog.validate_time_attribute.isChecked():
-                        # fix_print_with_import
                         print("VALIDATE LAYER: ", l.name())
                         valid_state = self.combo_delegate_attribute.validation_results.get(l.name())
                         if valid_state == 'valid':
-                            attribute_index = l.fieldNameIndex(attribute)
+                            attribute_index = l.fields().lookupField(attribute)
                             feature = list(l.getFeatures())[0]
                             first_value = feature.attributes()[attribute_index]
                             mask_value, is_suitable = self.time_validate(first_value, datetime_mask_array)
@@ -1209,7 +1206,7 @@ class ProjectPage(WizardPage):
                             new_idx = create_new_attribute(l, unix_time_layer)
 
                             # get time attribute index
-                            old_idx = l.fieldNameIndex(attribute)
+                            old_idx = l.fields().lookupField(attribute)
                             feature_idx = 0
 
                             # add data into new attribute
@@ -1233,7 +1230,7 @@ class ProjectPage(WizardPage):
                     else:
                         # fix_print_with_import
                         print("DOONT VALIDATE")
-                        attribute_index = l.fieldNameIndex(attribute)
+                        attribute_index = l.fields().lookupField(attribute)
                         feature = list(l.getFeatures())[0]
                         first_value = feature.attributes()[attribute_index]
                         mask_value, is_suitable = self.time_validate(first_value, datetime_mask_array)
@@ -1315,15 +1312,18 @@ class ProjectPage(WizardPage):
                 stat = None
                 if dialog.create_time_layers.isChecked() and layers_model.columnItem(layer_widget, 3) is not None:
                     if layers_model.columnItem(layer_widget, 3).text() != "":
+                        process_time_layers(
+                            layer.name(),
+                            layers_model.columnItem(layer_widget, 3).text())
                         min_max, valid, input_datetime_mask = process_time_layers(
                             layer.name(),
                             layers_model.columnItem(layer_widget, 3).text())
                         # fix_print_with_import
-                        # print(min_max)
+                        print(min_max)
                         # fix_print_with_import
-                        # print(valid)
+                        print(valid)
                         # fix_print_with_import
-                        # print(input_datetime_mask)
+                        print(input_datetime_mask)
                         # print stat.get('layer')
                         # print stat.get('processed')
                         # print stat.get('features')
@@ -1468,7 +1468,7 @@ class ProjectPage(WizardPage):
         return metadata
 
 
-class ComboDelegateAttribute(QItemDelegate, ProjectPage):
+class ComboDelegateAttribute(ProjectPage, QItemDelegate):
     i = 0
 
     def __init__(self, parent, layers, layers_model):
@@ -1479,18 +1479,19 @@ class ComboDelegateAttribute(QItemDelegate, ProjectPage):
         self.layers_model = layers_model
         self.dialog.validate_time_attribute.clicked.connect(self.toggle_attribute_validation)
         self.dialog.create_time_layers.clicked.connect(self.toggle_timee_settings)
-        # QItemDelegate.__init__(self, parent.treeView)
+        super(QItemDelegate, self).__init__(parent.treeView)
 
     def validate_time_atribute(self, l, selected_attribute):
         num_time_val = 0
         num_suitable_val = 0
         index = 0
         if selected_attribute != '':
-            atribute_index = l.fieldNameIndex(selected_attribute)
+            # attribute_index = l.fieldNameIndex(selected_attribute) API 2
+            attribute_index = l.fields().lookupField(selected_attribute)
             for feature in l.getFeatures():
                 index += 1
-                feature_value = feature.attributes()[atribute_index]
-                mask_value, is_suitable = self.time_validate(feature_value, datetime_mask_array)
+                feature_value = feature.attributes()[attribute_index]
+                mask_value, is_suitable = ProjectPage.time_validate(self, feature_value, datetime_mask_array)
                 if mask_value != -1:
                     num_time_val += 1
                 if is_suitable:
@@ -1508,9 +1509,6 @@ class ComboDelegateAttribute(QItemDelegate, ProjectPage):
             self.remove_messages(l.name())
 
     def createEditor(self, parent, option, index):
-        #  self.i
-        # print self.layers[self.i].name()
-
         combo = QComboBox(parent)
         combo.addItem('')
         if self.layers[self.i].type() == QgsMapLayer.VectorLayer:
@@ -1551,19 +1549,6 @@ class ComboDelegateAttribute(QItemDelegate, ProjectPage):
             # remove validation messages
             for l in self.layers:
                 self.remove_messages(l.name())
-
-    # def setEditorData(self, editor, index):
-    #     text = index.data()
-    #     index = editor.findText(text)
-    #     editor.setCurrentIndex(index)
-
-    # def setModelData(self, editor, model, index):
-    #     model.setData(index, editor.itemText(editor.currentIndex()))
-
-    # def updateEditorGeometry(self, editor, option, index):
-    #     # print option, option.rect
-    #     editor.setGeometry(option.rect)
-
 
 class ComboDelegateMask(QItemDelegate):
 

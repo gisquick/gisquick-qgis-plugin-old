@@ -288,36 +288,7 @@ class WebGisPlugin(object):
             List[qgis.core.QgsMapLayer]: project's layers
         """
         # legend_iface = self.iface.legendInterface().layers()
-        return [layer for layer in QgsProject.instance().mapLayers().values()]
-
-    # def _get_project_layers_tree(self):
-    #     """Returns root layer node of all project layers.
-    #
-    #     Returns:
-    #         webgisplugin.Node: project layers tree (root node)
-    #     """
-    #     legend_iface = [layer for layer in QgsProject.instance().mapLayers().values()]
-    #     print(legend_iface)
-    #     # print('parent', legend_iface[0].parent())
-    #
-    #     layers_reletionship = [(legend_iface[0].parent(), ['']), (legend_iface[1].parent(), [''])]
-    #
-    #     # legend_iface = self.iface.legendInterface()
-    #     # layers_reletionship = legend_iface.groupLayerRelationship()
-    #     layers_root = Node('')
-    #     for parent_name, child_names in layers_reletionship:
-    #         print(parent_name)
-    #         print(child_names)
-    #         parent = layers_root.find(parent_name)
-    #         if not parent:
-    #             parent = Node(parent_name)
-    #             print(parent)
-    #             print(layers_root)
-    #             layers_root.append(parent)
-    #             print(layers_root)
-    #         parent.append(*child_names)
-    #     # print(layers_root)
-    #     return layers_root
+        return [tree_layer.layer() for tree_layer in QgsProject.instance().layerTreeRoot().findLayers()]
 
     def get_project_base_layers(self):
         """Returns root layer node of all base layers.
