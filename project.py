@@ -1351,14 +1351,14 @@ class ProjectPage(WizardPage):
                 if layer.type() == QgsMapLayer.VectorLayer:
                     layer_data['type'] = 'vector'
                     layer_label_settings = QgsPalLayerSettings()
-                    layer_label_settings.readFromLayer(layer)
-                    layer_data['labels'] = layer_label_settings.enabled
-                    if layer.hasGeometryType():
+                    # layer_label_settings.readFromLayer(layer)
+                    # layer_data['labels'] = layer_label_settings.enabled
+                    if layer.isSpatial():
                         layer_data['geom_type'] = ('POINT', 'LINE', 'POLYGON')[layer.geometryType()]
 
-                    fields = layer.pendingFields()
+                    fields = layer.fields()
                     attributes_data = []
-                    excluded_attributes = layer.excludeAttributesWFS()
+                    excluded_attributes = layer.excludeAttributesWfs()
                     layer_wfs_allowed = layer.id() in wfs_layers
                     conversion_types = {
                         'BIGINT': 'INTEGER',
@@ -1427,35 +1427,35 @@ class ProjectPage(WizardPage):
                 metadata['overlays'] = overlays_data.get('layers')
 
         composer_templates = []
-        for composer in self.plugin.iface.activeComposers():
-            composition = composer.composition()
-            map_composer = composition.getComposerMapById(0)
-            map_rect = map_composer.rect()
-            composer_data = {
-                # cannot get composer name other way
-                'name': composer.composerWindow().windowTitle(),
-                'width': composition.paperWidth(),
-                'height': composition.paperHeight(),
-                'map': {
-                    'name': 'map0',
-                    'x': map_composer.x(),
-                    'y': map_composer.y(),
-                    'width': map_rect.width(),
-                    'height': map_rect.height()
-                },
-                'labels': [
-                    item.id() for item in list(composition.items())
-                        if isinstance(item, QgsComposerLabel) and item.id()
-                ]
-            }
-            grid = map_composer.grid()
-            if grid and grid.enabled():
-                composer_data['map']['grid'] = {
-                    'intervalX': grid.intervalX(),
-                    'intervalY': grid.intervalY(),
-                }
-            composer_templates.append(composer_data)
-        metadata['composer_templates'] = composer_templates
+        # for composer in self.plugin.iface.activeComposers():
+        #     composition = composer.composition()
+        #     map_composer = composition.getComposerMapById(0)
+        #     map_rect = map_composer.rect()
+        #     composer_data = {
+        #         # cannot get composer name other way
+        #         'name': composer.composerWindow().windowTitle(),
+        #         'width': composition.paperWidth(),
+        #         'height': composition.paperHeight(),
+        #         'map': {
+        #             'name': 'map0',
+        #             'x': map_composer.x(),
+        #             'y': map_composer.y(),
+        #             'width': map_rect.width(),
+        #             'height': map_rect.height()
+        #         },
+        #         'labels': [
+        #             item.id() for item in list(composition.items())
+        #                 if isinstance(item, QgsComposerLabel) and item.id()
+        #         ]
+        #     }
+        #     grid = map_composer.grid()
+        #     if grid and grid.enabled():
+        #         composer_data['map']['grid'] = {
+        #             'intervalX': grid.intervalX(),
+        #             'intervalY': grid.intervalY(),
+        #         }
+        #     composer_templates.append(composer_data)
+        # metadata['composer_templates'] = composer_templates
 
         metadata['message'] = None
         message_text = dialog.message_text.toPlainText()
