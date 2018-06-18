@@ -27,7 +27,8 @@ from qgis.core import (QgsMapLayer,
                        NULL,
                        QgsField,
                        QgsError,
-                       QgsProject
+                       QgsProject,
+                       QgsVectorLayerSimpleLabeling
                        # QgsComposerLabel
                        )
 from qgis.PyQt.QtWidgets import QItemDelegate, QTableWidgetItem, QHeaderView, QComboBox, QMessageBox, QWidget
@@ -245,10 +246,11 @@ class ProjectPage(WizardPage):
         min_resolution = self.dialog.min_scale.itemData(self.dialog.min_scale.currentIndex())
         max_resolution = self.dialog.max_scale.itemData(self.dialog.max_scale.currentIndex())
         msg = u"Invalid map scales range."
-        if min_resolution > max_resolution:
-            messages.append((MSG_ERROR, msg))
-        else:
-            self._remove_messages([(MSG_ERROR, msg)])
+        if min_resolution and max_resolution is not None:
+            if min_resolution > max_resolution:
+                messages.append((MSG_ERROR, msg))
+            else:
+                self._remove_messages([(MSG_ERROR, msg)])
 
         def publish_resolutions(resolutions, min_resolution=min_resolution, max_resolution=max_resolution):
             return [res for res in resolutions if res >= min_resolution and res <= max_resolution]
@@ -1342,6 +1344,7 @@ class ProjectPage(WizardPage):
                 if layer.type() == QgsMapLayer.VectorLayer:
                     layer_data['type'] = 'vector'
                     layer_label_settings = QgsPalLayerSettings()
+                    # layer_simple_labeling = QgsVectorLayerSimpleLabeling(layer_label_settings)
                     # layer_label_settings.readFromLayer(layer)
                     # layer_data['labels'] = layer_label_settings.enabled
                     if layer.isSpatial():

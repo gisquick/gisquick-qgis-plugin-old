@@ -296,40 +296,32 @@ class WebGisPlugin(object):
         Returns:
             webgisplugin.Node: project base layers tree (root node)
         """
-        # # build complete layers tree
-        # layers_root = self._get_project_layers_tree()
-        #
-        # # filter to base layers only
-        # base_layers = {
-        #     layer.id(): layer
-        #     for layer in self.layers_list()
-        #         if self.is_base_layer_for_publish(layer)
-        # }
-        #
-        # def base_tree(node):
-        #     base_children = []
-        #     for child in node.children:
-        #         base_child = base_tree(child)
-        #         if base_child:
-        #             base_children.append(base_child)
-        #     if base_children:
-        #         return Node(node.name, base_children)
-        #     elif not node.children and node.name in base_layers:
-        #         return Node(node.name, layer=base_layers[node.name])
-        # return base_tree(layers_root)
 
         def overlays_tree(tree_node):
-            overlay_children = []
-            for child in tree_node.children():
-                if isinstance(child, QgsLayerTreeLayer):
-                    layer = child.layer()
-                    print('Layer:', layer.name())
-                else:
-                    print('Group', child.name())
-                    overlays_tree(child)
+            if isinstance(tree_node, QgsLayerTreeLayer):
+                layer = tree_node.layer()
+                if self.is_base_layer_for_publish(layer):
+                    return Node(layer.id(), layer=layer)
+            else:
+                children = []
+                for child_tree_node in tree_node.children():
+                    node = overlays_tree(child_tree_node)
+                    if node:
+                        children.append(node)
+                if children:
+                    return Node(tree_node.name(), children)
 
         root_node = self.iface.layerTreeView().layerTreeModel().rootGroup()
-        return overlays_tree(root_node)
+        tree = overlays_tree(root_node)
+
+        # def dump_node(node, depth=0):
+        #     print('  ' * depth, node.name)
+        #     if node.children:
+        #         for child in node.children:
+        #             dump_node(child, depth + 1)
+        #
+        # dump_node(tree)
+        return tree
 
 
     def get_project_layers(self):
@@ -338,41 +330,6 @@ class WebGisPlugin(object):
         Returns:
             webgisplugin.Node: project overlay layers tree (root node)
         """
-        # # build complete layers tree
-        # layers_root = self._get_project_layers_tree()
-        #
-        # filter to overlay layers only
-        # overlay_layers = {
-        #     layer.id(): layer
-        #     for layer in self.layers_list()
-        #         if self.is_overlay_layer_for_publish(layer)
-        # }
-        # def overlays_tree(node):
-        #     overlay_children = []
-        #     for child in node.children:
-        #         overlay_child = overlays_tree(child)
-        #         if overlay_child:
-        #             overlay_children.append(overlay_child)
-        #     if overlay_children:
-        #         return Node(node.name, overlay_children)
-        #     elif not node.children and node.name in overlay_layers:
-        #         return Node(node.name, layer=overlay_layers[node.name])
-        #
-        # return overlays_tree(layers_root)
-
-        # def overlays_tree(tree_node):
-        #     overlay_children = []
-        #     for child in tree_node.children():
-        #         if isinstance(child, QgsLayerTreeLayer):
-        #             layer = child.layer()
-        #             print('Layer:', layer.name())
-        #             overlay_children.append(child)
-        #         else:
-        #             print('Group', child.name())
-        #             overlays_tree(child)
-
-        # root_node = self.iface.layerTreeView().layerTreeModel().rootGroup()
-        # return root_node
 
         def overlays_tree(tree_node):
             if isinstance(tree_node, QgsLayerTreeLayer):
@@ -391,13 +348,13 @@ class WebGisPlugin(object):
         root_node = self.iface.layerTreeView().layerTreeModel().rootGroup()
         tree = overlays_tree(root_node)
 
-        def dump_node(node, depth=0):
-            print('  ' * depth, node.name)
-            if node.children:
-                for child in node.children:
-                    dump_node(child, depth + 1)
-
-        dump_node(tree)
+        # def dump_node(node, depth=0):
+        #     print('  ' * depth, node.name)
+        #     if node.children:
+        #         for child in node.children:
+        #             dump_node(child, depth + 1)
+        #
+        # dump_node(tree)
         return tree
 
     def _new_metadata(self):
