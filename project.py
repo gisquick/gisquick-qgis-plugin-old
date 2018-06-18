@@ -1246,9 +1246,9 @@ class ProjectPage(WizardPage):
                                 min_atr = min(values)
                                 max_atr = max(values)
                                 min_atr = time.mktime(
-                                    datetime.datetime.strptime(min_atr.encode('latin-1'), mask_value).timetuple())
+                                    datetime.datetime.strptime(str(min_atr), mask_value).timetuple())
                                 max_atr = time.mktime(
-                                    datetime.datetime.strptime(max_atr.encode('latin-1'), mask_value).timetuple())
+                                    datetime.datetime.strptime(str(max_atr), mask_value).timetuple())
 
                                 return [min_atr, max_atr], True, mask_value
                             except (QgsError, ValueError):
@@ -1318,15 +1318,6 @@ class ProjectPage(WizardPage):
                         min_max, valid, input_datetime_mask = process_time_layers(
                             layer.name(),
                             layers_model.columnItem(layer_widget, 3).text())
-                        # fix_print_with_import
-                        print(min_max)
-                        # fix_print_with_import
-                        print(valid)
-                        # fix_print_with_import
-                        print(input_datetime_mask)
-                        # print stat.get('layer')
-                        # print stat.get('processed')
-                        # print stat.get('features')
                         if valid:
                             layer_data['original_time_attribute'] = layers_model.columnItem(layer_widget, 3).text()
                             layer_data['output_datetime_mask'] = layers_model.columnItem(layer_widget, 4).text()
