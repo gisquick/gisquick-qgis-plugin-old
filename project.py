@@ -31,7 +31,12 @@ from qgis.core import (QgsMapLayer,
                        QgsVectorLayerSimpleLabeling
                        # QgsComposerLabel
                        )
-from qgis.PyQt.QtWidgets import QItemDelegate, QTableWidgetItem, QHeaderView, QComboBox, QMessageBox, QWidget
+from qgis.PyQt.QtWidgets import (QItemDelegate,
+                                 QTableWidgetItem,
+                                 QHeaderView,
+                                 QComboBox,
+                                 QMessageBox,
+                                 QWidget)
 from qgis.PyQt.QtGui import QColor, QStandardItemModel, QStandardItem
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtCore import QVariant
@@ -810,7 +815,8 @@ class ProjectPage(WizardPage):
 
             dialog.treeView.setModel(layers_model)
             layers_root = create_layer_widget(self.overlay_layers_tree)
-            print('layers_root', layers_root)
+            # print('layers_root', self.overlay_layers_tree.children)
+
             while layers_root.rowCount():
                 layers_model.appendRow(layers_root.takeRow(0))
             dialog.treeView.header().setSectionResizeMode(0, QHeaderView.Stretch)
@@ -820,21 +826,40 @@ class ProjectPage(WizardPage):
             vector_layers = []
             for l in all_layers:
                 if l.type() == QgsMapLayer.VectorLayer:
+                    print(l.name())
                     vector_layers.append(l)
             return vector_layers
 
-
+        def search_tree_child(index):
+            currentIndex = dialog.treeView.indexBelow(index)
+            valid = currentIndex.isValid()
+            i = 0
+            while valid:
+                sibling = currentIndex.sibling(i, 4)
+                if sibling.data() is None:
+                    childIndex = dialog.treeView.indexBelow(sibling)
+                    search_tree_child(childIndex)
+                else:
+                    dialog.treeView.openPersistentEditor(sibling)
+                i += 1
+                valid = currentIndex.sibling(i, 4).isValid()
+                print('valid', valid)
 
         def add_time_settings():
-            dialog.treeView.setItemDelegateForColumn(3, self.combo_delegate_attribute)
-            for row in range(0, layers_model.rowCount()):
-                if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
-                    dialog.treeView.openPersistentEditor(layers_model.index(row, 3))
+            # dialog.treeView.setItemDelegateForColumn(3, self.combo_delegate_attribute)
+            # for row in range(0, layers_model.rowCount()):
+            #     if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
+            #         dialog.treeView.openPersistentEditor(layers_model.index(row, 3))
+
+            dialog.treeView.expandAll()
 
             dialog.treeView.setItemDelegateForColumn(4, ComboDelegateMask(dialog.treeView))
+
             for row in range(0, layers_model.rowCount()):
+                search_tree_child(layers_model.index(row, 4))
                 if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
-                    dialog.treeView.openPersistentEditor(layers_model.index(row, 4))
+                    pass
+                    # dialog.treeView.openPersistentEditor(layers_model.index(row, 4))
 
         def layer_item_changed(item):
             if item.model().columnItem(item, 0).data(Qt.UserRole): # check if item is layer item
@@ -846,8 +871,8 @@ class ProjectPage(WizardPage):
         if self.overlay_layers_tree:
             layers_model = QStandardItemModel()
 
-            self.combo_delegate_attribute = ComboDelegateAttribute(dialog, get_vector_layers(
-                self.plugin.layers_list()), layers_model)
+            # self.combo_delegate_attribute = ComboDelegateAttribute(dialog, get_vector_layers(
+            #     self.plugin.layers_list()), layers_model)
 
             create_horizontal_labels()
             add_time_settings()
@@ -868,6 +893,7 @@ class ProjectPage(WizardPage):
                 dialog.treeView.hideColumn(3)
                 dialog.treeView.hideColumn(4)
             for l in self.plugin.layers_list():
+                print(l.name())
                 layer_widget = layers_model.findItems(
                     l.name(),
                     Qt.MatchExactly | Qt.MatchRecursive
