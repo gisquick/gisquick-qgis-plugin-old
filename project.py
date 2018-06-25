@@ -792,7 +792,8 @@ class ProjectPage(WizardPage):
                     | Qt.ItemIsTristate
                 )
                 date_mask.setEnabled(False)
-                date_mask.setText('YYYY-MM-DD HH:mm')
+                if is_vector_layer:
+                    date_mask.setText('YYYY-MM-DD HH:mm')
                 # date_mask.setEditable(Qt.AutoText)
 
                 # time_attribute.setEditable(Qt.AutoText)
@@ -825,38 +826,59 @@ class ProjectPage(WizardPage):
         def get_vector_layers(all_layers):
             vector_layers = []
             for l in all_layers:
+                # print(l.type())
                 if l.type() == QgsMapLayer.VectorLayer:
-                    print(l.name())
+                    # print(l.name())
                     vector_layers.append(l)
+            # print(len(vector_layers))
             return vector_layers
 
-        def search_tree_child(index):
-            currentIndex = dialog.treeView.indexBelow(index)
-            valid = currentIndex.isValid()
-            i = 0
-            while valid:
-                sibling = currentIndex.sibling(i, 4)
-                if sibling.data() is None:
-                    childIndex = dialog.treeView.indexBelow(sibling)
-                    search_tree_child(childIndex)
-                else:
-                    dialog.treeView.openPersistentEditor(sibling)
-                i += 1
-                valid = currentIndex.sibling(i, 4).isValid()
-                print('valid', valid)
+        # def child(index):
+        #     data = index.
+
+        def search_tree_child(model, column):
+            # print('#################')
+            row = model.row()
+            data = model.sibling(row, 4).data()
+            if data is not None:
+                # print('data', model.sibling(row, 0).data())
+                dialog.treeView.openPersistentEditor(model)
+            else:
+                current_index = dialog.treeView.indexBelow(model)
+                i = 0
+                valid = True
+                while valid:
+                    # print('parent', current_index.sibling(i, 0).data())
+                    current_sibling = current_index.sibling(i, 4)
+                    if current_sibling.data() is None:
+                        child_index = dialog.treeView.indexBelow(current_sibling)
+                        if child_index.data() is not None:
+                            # print('child', dialog.treeView.indexBelow(current_index.sibling(i, 0)).data())
+                            search_tree_child(current_index.sibling(i, column), column)
+                    else:
+                        # print('LAYER', current_index.sibling(i, 0).data())
+                        sibling = current_index.sibling(i, column)
+                        dialog.treeView.openPersistentEditor(sibling)
+                    i += 1
+                    valid = current_index.sibling(i, column).isValid()
+                    # print('valid', valid)
 
         def add_time_settings():
-            # dialog.treeView.setItemDelegateForColumn(3, self.combo_delegate_attribute)
-            # for row in range(0, layers_model.rowCount()):
-            #     if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
-            #         dialog.treeView.openPersistentEditor(layers_model.index(row, 3))
 
             dialog.treeView.expandAll()
+
+            dialog.treeView.setItemDelegateForColumn(3, self.combo_delegate_attribute)
+            for row in range(0, layers_model.rowCount()):
+                search_tree_child(layers_model.index(row, 3), 3)
+                if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
+                    pass
+                    # dialog.treeView.openPersistentEditor(layers_model.index(row, 3))
+
 
             dialog.treeView.setItemDelegateForColumn(4, ComboDelegateMask(dialog.treeView))
 
             for row in range(0, layers_model.rowCount()):
-                search_tree_child(layers_model.index(row, 4))
+                search_tree_child(layers_model.index(row, 4), 4)
                 if self.plugin.layers_list()[row].type() == QgsMapLayer.VectorLayer:
                     pass
                     # dialog.treeView.openPersistentEditor(layers_model.index(row, 4))
@@ -871,8 +893,8 @@ class ProjectPage(WizardPage):
         if self.overlay_layers_tree:
             layers_model = QStandardItemModel()
 
-            # self.combo_delegate_attribute = ComboDelegateAttribute(dialog, get_vector_layers(
-            #     self.plugin.layers_list()), layers_model)
+            self.combo_delegate_attribute = ComboDelegateAttribute(dialog, get_vector_layers(
+                self.plugin.layers_list()), layers_model)
 
             create_horizontal_labels()
             add_time_settings()
