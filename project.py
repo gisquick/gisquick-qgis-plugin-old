@@ -1423,6 +1423,7 @@ class ProjectPage(WizardPage):
                     layer_data['type'] = 'raster'
                 return layer_data, stat
 
+        # used in old version with QMessageBox time statistics
         def create_statistic_message(stat):
             show_mesage = False
             message = ''
@@ -1448,7 +1449,7 @@ class ProjectPage(WizardPage):
         metadata['overlays'] = []
         if self.overlay_layers_tree:
             overlays_data, time_statistics = create_overlays_data(self.overlay_layers_tree)
-            create_statistic_message(time_statistics)
+            # create_statistic_message(time_statistics)
             if overlays_data:
                 metadata['overlays'] = overlays_data.get('layers')
 
