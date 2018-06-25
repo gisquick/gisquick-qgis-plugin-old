@@ -864,6 +864,8 @@ class ProjectPage(WizardPage):
             for row in range(0, layers_model.rowCount()):
                 search_tree_child(layers_model.index(row, 4), 4)
 
+            dialog.treeView.collapseAll()
+
         def layer_item_changed(item):
             if item.model().columnItem(item, 0).data(Qt.UserRole): # check if item is layer item
                 dependent_items = None
@@ -897,10 +899,6 @@ class ProjectPage(WizardPage):
                 dialog.treeView.hideColumn(4)
 
             for l in get_vector_layers(self.plugin.layers_list()):
-                print(l.name())
-            #
-            # for l in self.plugin.layers_list():
-            #     print(l.name())
                 layer_widget = layers_model.findItems(
                     l.name(),
                     Qt.MatchExactly | Qt.MatchRecursive
@@ -1181,7 +1179,8 @@ class ProjectPage(WizardPage):
 
         projectInstance = QgsProject.instance()
         if projectInstance.layerTreeRoot().hasCustomLayerOrder():
-            overlays_order = self.plugin.iface.layerTreeCanvasBridge().customLayerOrder()
+            # overlays_order = self.plugin.iface.layerTreeCanvasBridge().customLayerOrder()
+            overlays_order = projectInstance.layerTreeRoot().customLayerOrder()
         else:
             overlays_order = [
                 layer.id() for layer in self.plugin.layers_list()
@@ -1336,7 +1335,7 @@ class ProjectPage(WizardPage):
                     'visible': self.plugin.iface.layerTreeView().layerTreeModel().rootGroup().findLayer(layer).itemVisibilityChecked(),
                     'queryable': not is_hidden and layer.id() not in non_identifiable_layers,
                     'hidden': is_hidden,
-                    'drawing_order': overlays_order.index(layer.id()),
+                    'drawing_order': overlays_order.index(layer),  # overlays_order.index(layer.id())
                     'metadata': {
                         'title': layer.title(),
                         'abstract': layer.abstract(),
@@ -1455,6 +1454,7 @@ class ProjectPage(WizardPage):
 
         composer_templates = []
         # for composer in self.plugin.iface.activeComposers():
+        #     pass
         #     composition = composer.composition()
         #     map_composer = composition.getComposerMapById(0)
         #     map_rect = map_composer.rect()
