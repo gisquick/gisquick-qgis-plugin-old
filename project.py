@@ -1454,6 +1454,16 @@ class ProjectPage(WizardPage):
                 metadata['overlays'] = overlays_data.get('layers')
 
         composer_templates = []
+        project_layout_manager = projectInstance.layoutManager()
+        for layout in project_layout_manager.layouts():
+            composer_data = {
+                'name': layout.name()
+            }
+            composer_templates.append(composer_data)
+            print('layouts', layout.name())
+        metadata['composer_templates'] = composer_templates
+
+
         # for composer in self.plugin.iface.activeComposers():
         #     pass
         #     composition = composer.composition()
