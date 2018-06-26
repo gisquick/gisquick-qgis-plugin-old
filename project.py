@@ -1456,13 +1456,32 @@ class ProjectPage(WizardPage):
         composer_templates = []
         project_layout_manager = projectInstance.layoutManager()
         for layout in project_layout_manager.layouts():
+            # print('NAME', layout.name())
+            # print('PAGE BOUNDS', layout.pageItemBounds(0))
+            map = layout.referenceMap()
+            units_conversion = map.mapUnitsToLayoutUnits()
             composer_data = {
-                'name': layout.name()
+                'name': layout.name(),
+                'width': layout.layoutBounds().width(),
+                'height': layout.layoutBounds().height(),
+                'map': {
+                    'name': 'map0',
+                    'x': map.pagePos().x(),
+                    'y': map.pagePos().y(),
+                    'width': map.extent().width() * units_conversion,
+                    'height': map.extent().height() * units_conversion
+                }
             }
+            grid = map.grid()
+            if grid.enabled():
+                composer_data['map']['grid'] = {
+                    'intervalX': grid.intervalX(),
+                    'intervalY': grid.intervalY(),
+                }
             composer_templates.append(composer_data)
-            print('layouts', layout.name())
         metadata['composer_templates'] = composer_templates
 
+        # render = self.plugin.iface.mapCanvas().mapRenderer()
 
         # for composer in self.plugin.iface.activeComposers():
         #     pass
@@ -1471,19 +1490,26 @@ class ProjectPage(WizardPage):
         #     map_rect = map_composer.rect()
         #     composer_data = {
         #         # cannot get composer name other way
-        #         'name': composer.composerWindow().windowTitle(),
-        #         'width': composition.paperWidth(),
-        #         'height': composition.paperHeight(),
+        #         'name': composer.composerWindow().windowTitle(), A4 Portrait
+        #         'width': composition.paperWidth(), 210
+        #         'height': composition.paperHeight(), 298
         #         'map': {
         #             'name': 'map0',
-        #             'x': map_composer.x(),
-        #             'y': map_composer.y(),
-        #             'width': map_rect.width(),
-        #             'height': map_rect.height()
+        #             'x': map_composer.x(), 10
+        #             'y': map_composer.y(), 20
+        #             'width': map_rect.width(), 189.925
+        #             'height': map_rect.height() 263.5
         #         },
         #         'labels': [
         #             item.id() for item in list(composition.items())
-        #                 if isinstance(item, QgsComposerLabel) and item.id()
+        #                 if isinstance(item, QgsComposerLabel) and item.id() [
+        #
+        #         "gislab_project",
+        #         "gislab_author",
+        #         "gislab_copyrights",
+        #         "gislab_contact",
+        #         "Title"
+
         #         ]
         #     }
         #     grid = map_composer.grid()
