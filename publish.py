@@ -326,7 +326,7 @@ class PublishPage(WizardPage):
         for layer_name in overlays_names:
             layer = [l for l in list(map_layers.values()) if layer_name in (l.name(), l.shortName())][0]
             if layer.dataProvider().name() == "spatialite":
-                provider = providers_registry.provider(
+                provider = providers_registry.createProvider(
                     "spatialite",
                     layer.dataProvider().dataSourceUri()
                 )

@@ -1483,46 +1483,6 @@ class ProjectPage(WizardPage):
             composer_templates.append(composer_data)
         metadata['composer_templates'] = composer_templates
 
-        # render = self.plugin.iface.mapCanvas().mapRenderer()
-
-        # for composer in self.plugin.iface.activeComposers():
-        #     pass
-        #     composition = composer.composition()
-        #     map_composer = composition.getComposerMapById(0)
-        #     map_rect = map_composer.rect()
-        #     composer_data = {
-        #         # cannot get composer name other way
-        #         'name': composer.composerWindow().windowTitle(), A4 Portrait
-        #         'width': composition.paperWidth(), 210
-        #         'height': composition.paperHeight(), 298
-        #         'map': {
-        #             'name': 'map0',
-        #             'x': map_composer.x(), 10
-        #             'y': map_composer.y(), 20
-        #             'width': map_rect.width(), 189.925
-        #             'height': map_rect.height() 263.5
-        #         },
-        #         'labels': [
-        #             item.id() for item in list(composition.items())
-        #                 if isinstance(item, QgsComposerLabel) and item.id() [
-        #
-        #         "gislab_project",
-        #         "gislab_author",
-        #         "gislab_copyrights",
-        #         "gislab_contact",
-        #         "Title"
-
-        #         ]
-        #     }
-        #     grid = map_composer.grid()
-        #     if grid and grid.enabled():
-        #         composer_data['map']['grid'] = {
-        #             'intervalX': grid.intervalX(),
-        #             'intervalY': grid.intervalY(),
-        #         }
-        #     composer_templates.append(composer_data)
-        # metadata['composer_templates'] = composer_templates
-
         metadata['message'] = None
         message_text = dialog.message_text.toPlainText()
         if message_text:
