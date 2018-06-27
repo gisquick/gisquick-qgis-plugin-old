@@ -28,8 +28,8 @@ from qgis.core import (QgsMapLayer,
                        QgsField,
                        QgsError,
                        QgsProject,
-                       QgsVectorLayerSimpleLabeling
-                       # QgsComposerLabel
+                       QgsVectorLayerSimpleLabeling,
+                       QgsLayoutItemLabel
                        )
 from qgis.PyQt.QtWidgets import (QItemDelegate,
                                  QTableWidgetItem,
@@ -1456,8 +1456,6 @@ class ProjectPage(WizardPage):
         composer_templates = []
         project_layout_manager = projectInstance.layoutManager()
         for layout in project_layout_manager.layouts():
-            # print('NAME', layout.name())
-            # print('PAGE BOUNDS', layout.pageItemBounds(0))
             map = layout.referenceMap()
             units_conversion = map.mapUnitsToLayoutUnits()
             composer_data = {
@@ -1470,7 +1468,11 @@ class ProjectPage(WizardPage):
                     'y': map.pagePos().y(),
                     'width': map.extent().width() * units_conversion,
                     'height': map.extent().height() * units_conversion
-                }
+                },
+                'labels': [
+                    item.id() for item in list(layout.items())
+                        if isinstance(item, QgsLayoutItemLabel) and item.id()
+                ]
             }
             grid = map.grid()
             if grid.enabled():
