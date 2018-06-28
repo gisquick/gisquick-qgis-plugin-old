@@ -1335,7 +1335,7 @@ class ProjectPage(WizardPage):
                     'visible': self.plugin.iface.layerTreeView().layerTreeModel().rootGroup().findLayer(layer).itemVisibilityChecked(),
                     'queryable': not is_hidden and layer.id() not in non_identifiable_layers,
                     'hidden': is_hidden,
-                    'drawing_order': overlays_order.index(layer),  # overlays_order.index(layer.id())
+                    'drawing_order': overlays_order.index(layer.id()),  # overlays_order.index(layer.id())
                     'metadata': {
                         'title': layer.title(),
                         'abstract': layer.abstract(),
