@@ -1183,7 +1183,7 @@ class ProjectPage(WizardPage):
             overlays_order = projectInstance.layerTreeRoot().customLayerOrder()
         else:
             overlays_order = [
-                layer.id() for layer in self.plugin.layers_list()
+                layer for layer in self.plugin.layers_list()
             ]
         wfs_layers = self.plugin.project.readListEntry("WFSLayers", "/")[0] or []
 
@@ -1214,7 +1214,6 @@ class ProjectPage(WizardPage):
             for l in self.plugin.layers_list():
                 if l.name() == layer_name:
                     if dialog.validate_time_attribute.isChecked():
-                        print("VALIDATE LAYER: ", l.name())
                         valid_state = self.combo_delegate_attribute.validation_results.get(l.name())
                         if valid_state == 'valid':
                             attribute_index = l.fields().lookupField(attribute)
@@ -1263,7 +1262,6 @@ class ProjectPage(WizardPage):
 
                     else:
                         # fix_print_with_import
-                        print("DOONT VALIDATE")
                         attribute_index = l.fields().lookupField(attribute)
                         feature = list(l.getFeatures())[0]
                         first_value = feature.attributes()[attribute_index]
@@ -1335,7 +1333,7 @@ class ProjectPage(WizardPage):
                     'visible': self.plugin.iface.layerTreeView().layerTreeModel().rootGroup().findLayer(layer).itemVisibilityChecked(),
                     'queryable': not is_hidden and layer.id() not in non_identifiable_layers,
                     'hidden': is_hidden,
-                    'drawing_order': overlays_order.index(layer.id()),  # overlays_order.index(layer.id())
+                    'drawing_order': overlays_order.index(layer),  # overlays_order.index(layer.id())
                     'metadata': {
                         'title': layer.title(),
                         'abstract': layer.abstract(),
