@@ -1290,17 +1290,15 @@ class ProjectPage(WizardPage):
 
         def create_overlays_data(node):
             sublayers = []
-            all_statistics = []
             for child in node.children:
-                sublayer, layer_statistics = create_overlays_data(child)
+                sublayer = create_overlays_data(child)
                 if sublayer:
                     sublayers.append(sublayer)
-                    all_statistics.append(layer_statistics)
             if sublayers:
                 return {
                     'name': node.name,
                     'layers': sublayers
-                }, all_statistics
+                }
             elif node.layer:
                 layer = node.layer
                 layers_model = dialog.treeView.model()
@@ -1310,7 +1308,7 @@ class ProjectPage(WizardPage):
                 )[0]
 
                 if layer_widget.checkState() == Qt.Unchecked:
-                    return None, None
+                    return None
 
                 if layer.extent().isFinite() and not layer.extent().isEmpty():
                     try:
@@ -1333,7 +1331,7 @@ class ProjectPage(WizardPage):
                     'visible': self.plugin.iface.layerTreeView().layerTreeModel().rootGroup().findLayer(layer).itemVisibilityChecked(),
                     'queryable': not is_hidden and layer.id() not in non_identifiable_layers,
                     'hidden': is_hidden,
-                    'drawing_order': overlays_order.index(layer),  # overlays_order.index(layer.id())
+                    'drawing_order': overlays_order.index(layer),
                     'metadata': {
                         'title': layer.title(),
                         'abstract': layer.abstract(),
@@ -1419,35 +1417,11 @@ class ProjectPage(WizardPage):
                         layer_data['queryable'] = False
                 else:
                     layer_data['type'] = 'raster'
-                return layer_data, stat
-
-        # used in old version with QMessageBox time statistics
-        def create_statistic_message(stat):
-            show_mesage = False
-            message = ''
-            for s in stat:
-                if s is not None:
-                    show_mesage = True
-                    invalid = s.get('invalid', False)
-                    if invalid:
-                        message += 'Selected attribute in layer: '
-                        message += s.get('layer')
-                        message += ' is invalid \n \n'
-                    else:
-                        message += 'Layer: '
-                        message += s.get('layer')
-                        message += ', total features: '
-                        message += str(s.get('features'))
-                        message += ', processed: '
-                        message += str(s.get('processed'))
-                        message += '\n \n'
-            if show_mesage:
-                QMessageBox.information(QWidget(), "Statistics", message)
+                return layer_data
 
         metadata['overlays'] = []
         if self.overlay_layers_tree:
-            overlays_data, time_statistics = create_overlays_data(self.overlay_layers_tree)
-            # create_statistic_message(time_statistics)
+            overlays_data = create_overlays_data(self.overlay_layers_tree)
             if overlays_data:
                 metadata['overlays'] = overlays_data.get('layers')
 
