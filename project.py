@@ -36,8 +36,10 @@ from qgis.PyQt.QtWidgets import (QItemDelegate,
                                  QHeaderView,
                                  QComboBox,
                                  QMessageBox,
-                                 QWidget)
-from qgis.PyQt.QtGui import QColor, QStandardItemModel, QStandardItem
+                                 QWidget,
+                                 QDialog,
+                                 QPushButton)
+from qgis.PyQt.QtGui import QColor, QStandardItemModel, QStandardItem, QCursor
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtCore import QVariant
 from qgis.PyQt.QtXml import QDomDocument
@@ -1483,7 +1485,6 @@ class ProjectPage(WizardPage):
 
 class ComboDelegateAttribute(ProjectPage, QItemDelegate):
     output_mask_array = [
-        '',
         'manual date',
         'interval date',
         'date from name'
@@ -1536,19 +1537,27 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
                 for field in layer.fields():
                     combo.addItem(field.name(), 1)
                     combo.setItemData(0, layer.name(), Qt.UserRole + 1)
+                    combo.setItemData(0, self.active_layer_type, Qt.UserRole + 2)
                 break
             elif self.active_layer_type == 'raster group':
+                combo.addItem('')
                 for mask in self.output_mask_array:
-                    combo.addItem(mask)
+                    combo.addItem(mask, 1)
+                    combo.setItemData(0, self.active_layer_name, Qt.UserRole + 1)
+                    combo.setItemData(0, self.active_layer_type, Qt.UserRole + 2)
                 break
 
         def check_attribute_values(selected_index):
-            if self.dialog.validate_time_attribute.isChecked():
+            type = combo.itemData(0, Qt.UserRole + 2)
+            if self.dialog.validate_time_attribute.isChecked() and type == 'vector':
                 for l in self.layers:
                     layer_name = combo.itemData(0, Qt.UserRole + 1)
                     selected_attribute = combo.itemText(selected_index)
                     if layer_name == l.name():
                         self.validate_time_atribute(l, selected_attribute)
+            elif type == 'raster group':
+                self.showdialog(combo.itemText(selected_index))
+
         combo.currentIndexChanged.connect(check_attribute_values)
         return combo
 
@@ -1578,6 +1587,20 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
     def set_current_layer(self, layer_name, layer_type):
         self.active_layer_name = layer_name
         self.active_layer_type = layer_type
+
+    def showdialog(self, type):
+        dialog = QDialog()
+        exit_button = QPushButton("set", dialog)
+        exit_button.move(50, 50)
+        exit_button.clicked.connect(dialog.reject)
+        dialog.setFixedSize(250, 300)
+        dialog.setWindowTitle("Raster layer group time settings")
+        dialog.setWindowModality(Qt.ApplicationModal)
+        dialog.exec_()
+
+    def close_dialog(self, dialog):
+        dialog.reject()
+
 
 class ComboDelegateMask(QItemDelegate):
 
