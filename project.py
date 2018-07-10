@@ -794,6 +794,8 @@ class ProjectPage(WizardPage):
                 date_mask.setEnabled(False)
                 if is_vector_layer:
                     date_mask.setText('YYYY-MM-DD HH:mm')
+                else:
+                    unix_state.setText('raster')
                 # date_mask.setEditable(Qt.AutoText)
 
                 # time_attribute.setEditable(Qt.AutoText)
@@ -823,30 +825,50 @@ class ProjectPage(WizardPage):
             dialog.treeView.header().setSectionResizeMode(0, QHeaderView.Stretch)
             dialog.treeView.header().setVisible(True)
 
+        def get_overlay_layers(all_layers):
+            overlay_layers = []
+            for l in all_layers:
+                if self.plugin.is_overlay_layer_for_publish(l):
+                    overlay_layers.append(l)
+            return overlay_layers
+
         def get_vector_layers(all_layers):
-            vector_layers = []
+            overlay_layers = []
             for l in all_layers:
                 if l.type() == QgsMapLayer.VectorLayer:
-                    vector_layers.append(l)
-            return vector_layers
+                    overlay_layers.append(l)
+            return overlay_layers
 
-        def search_tree_child(model, column):
+        def search_tree_child(model, column, layer_type):
+            layer_type_num = 4
+            if layer_type == 'raster':
+                layer_type_num = 2
             row = model.row()
-            data = model.sibling(row, 4).data()
-            if data is not None:
+            data = model.sibling(row, layer_type_num).data()
+            if data is not None and layer_type == 'vector':
+                # print('1', model.sibling(row, 0).data())
+                self.combo_delegate_attribute.set_current_layer(model.sibling(row, 0).data(), 'vector')
                 dialog.treeView.openPersistentEditor(model)
             else:
                 current_index = dialog.treeView.indexBelow(model)
                 i = 0
                 valid = True
                 while valid:
-                    current_sibling = current_index.sibling(i, 4)
+                    current_sibling = current_index.sibling(i, layer_type_num)
                     if current_sibling.data() is None:
                         child_index = dialog.treeView.indexBelow(current_sibling)
-                        if child_index.data() is not None:
-                            search_tree_child(current_index.sibling(i, column), column)
-                    else:
+                        if dialog.treeView.indexBelow(current_index.sibling(i, 2)).data() == 'raster':
+                            # self.combo_delegate_raster_group.addLayer(current_index.sibling(i, 0).data())
+                            sibling = current_index.sibling(i, column)
+                            # print('2', current_index.sibling(i, 0).data())
+                            self.combo_delegate_attribute.set_current_layer(current_index.sibling(i, 0).data(), 'raster')
+                            dialog.treeView.openPersistentEditor(sibling)
+                        elif child_index.data() is not None:
+                            search_tree_child(current_index.sibling(i, column), column, layer_type)
+                    elif layer_type == 'vector':
                         sibling = current_index.sibling(i, column)
+                        # print('3', current_index.sibling(i, 0).data())
+                        self.combo_delegate_attribute.set_current_layer(current_index.sibling(i, 0).data(), 'vector')
                         dialog.treeView.openPersistentEditor(sibling)
                     i += 1
                     valid = current_index.sibling(i, column).isValid()
@@ -855,16 +877,24 @@ class ProjectPage(WizardPage):
 
             dialog.treeView.expandAll()
 
+            # dialog.treeView.setItemDelegateForColumn(3, self.combo_delegate_raster_group)
+            # for row in range(0, layers_model.rowCount()):
+            #     search_tree_child(layers_model.index(row, 3), 3, 'raster')
+            #
+            # dialog.treeView.setItemDelegateForColumn(4, ComboDelegateMask(dialog.treeView))
+            # for row in range(0, layers_model.rowCount()):
+            #     search_tree_child(layers_model.index(row, 4), 4, 'raster')
+
             dialog.treeView.setItemDelegateForColumn(3, self.combo_delegate_attribute)
             for row in range(0, layers_model.rowCount()):
-                search_tree_child(layers_model.index(row, 3), 3)
+                search_tree_child(layers_model.index(row, 3), 3, 'vector')
 
             dialog.treeView.setItemDelegateForColumn(4, ComboDelegateMask(dialog.treeView))
 
             for row in range(0, layers_model.rowCount()):
-                search_tree_child(layers_model.index(row, 4), 4)
+                search_tree_child(layers_model.index(row, 4), 4, 'vector')
 
-            dialog.treeView.collapseAll()
+            # dialog.treeView.collapseAll()
 
         def layer_item_changed(item):
             if item.model().columnItem(item, 0).data(Qt.UserRole): # check if item is layer item
@@ -879,6 +909,8 @@ class ProjectPage(WizardPage):
             self.combo_delegate_attribute = ComboDelegateAttribute(dialog, get_vector_layers(
                 self.plugin.layers_list()), layers_model)
 
+            # self.combo_delegate_raster_group = ComboDelegateRasterGroup(dialog, layers_model)
+
             create_horizontal_labels()
             add_time_settings()
             dialog.treeView.hideColumn(2)
@@ -887,7 +919,7 @@ class ProjectPage(WizardPage):
             layers_model.itemChanged.connect(layer_item_changed)
             dialog.validate_time_attribute.setEnabled(False)
 
-        def toggle_timee_settings():
+        def toggle_time_settings():
             if dialog.create_time_layers.isChecked():
                 dialog.validate_time_attribute.setEnabled(True)
                 dialog.treeView.showColumn(3)
@@ -898,7 +930,7 @@ class ProjectPage(WizardPage):
                 dialog.treeView.hideColumn(3)
                 dialog.treeView.hideColumn(4)
 
-            for l in get_vector_layers(self.plugin.layers_list()):
+            for l in get_overlay_layers(self.plugin.layers_list()):
                 layer_widget = layers_model.findItems(
                     l.name(),
                     Qt.MatchExactly | Qt.MatchRecursive
@@ -907,7 +939,7 @@ class ProjectPage(WizardPage):
                 layer_widget.model().columnItem(layer_widget, 2).setText('X#$X')
                 layer_widget.model().columnItem(layer_widget, 2).setText(current_attribute)
 
-        dialog.create_time_layers.clicked.connect(toggle_timee_settings)
+        dialog.create_time_layers.clicked.connect(toggle_time_settings)
 
         if self.plugin.last_metadata:
             try:
@@ -1468,15 +1500,23 @@ class ProjectPage(WizardPage):
 
 class ComboDelegateAttribute(ProjectPage, QItemDelegate):
     i = 0
+    output_mask_array = [
+        '',
+        'manual date',
+        'interval date',
+        'date from name'
+    ]
 
     def __init__(self, parent, layers, layers_model):
+        self.active_layer_name = ''
+        self.active_layer_type = ''
         self.layers = layers
         self.dialog = parent
         self._num_errors = 0
         self.validation_results = {}
         self.layers_model = layers_model
         self.dialog.validate_time_attribute.clicked.connect(self.toggle_attribute_validation)
-        self.dialog.create_time_layers.clicked.connect(self.toggle_timee_settings)
+        self.dialog.create_time_layers.clicked.connect(self.toggle_time_settings)
         super(QItemDelegate, self).__init__(parent.treeView)
 
     def validate_time_atribute(self, l, selected_attribute):
@@ -1508,11 +1548,19 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
 
     def createEditor(self, parent, option, index):
         combo = QComboBox(parent)
-        combo.addItem('')
-        if self.layers[self.i].type() == QgsMapLayer.VectorLayer:
-            for field in self.layers[self.i].fields():
-                combo.addItem(field.name(), self.i)
-                combo.setItemData(0, self.layers[self.i].name(), Qt.UserRole + 1)
+        # layer = self.layers[self.i]
+        for layer in self.layers:
+            if layer.name() == self.active_layer_name and self.active_layer_type == 'vector':
+                combo.addItem('')
+                for field in layer.fields():
+                    combo.addItem(field.name(), self.i)
+                    combo.setItemData(0, layer.name(), Qt.UserRole + 1)
+                break
+            elif self.active_layer_type == 'raster':
+                print(self.active_layer_name)
+                for mask in self.output_mask_array:
+                    combo.addItem(mask)
+                break
         self.i += 1
 
         def check_attribute_values(selected_index):
@@ -1542,11 +1590,15 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
             for l in self.layers:
                 self.remove_messages(l.name())
 
-    def toggle_timee_settings(self):
+    def toggle_time_settings(self):
         if not self.dialog.create_time_layers.isChecked():
             # remove validation messages
             for l in self.layers:
                 self.remove_messages(l.name())
+
+    def set_current_layer(self, layer_name, layer_type):
+        self.active_layer_name = layer_name
+        self.active_layer_type = layer_type
 
 class ComboDelegateMask(QItemDelegate):
 
@@ -1563,3 +1615,68 @@ class ComboDelegateMask(QItemDelegate):
         for mask in self.output_mask_array:
             combo.addItem(mask)
         return combo
+
+# class ComboDelegateRasterGroup(QItemDelegate):
+#
+#     def __init__(self, dialog, model):
+#         self.dialog = dialog
+#         self.model = model
+#         super(QItemDelegate, self).__init__(dialog.treeView)
+#
+#     output_mask_array = [
+#         '',
+#         'manual date',
+#         'interval date',
+#         'date from name'
+#     ]
+#
+#     def createEditor(self, parent, option, index):
+#         combo = QComboBox(parent)
+#         for row in range(0, self.model.rowCount()):
+#             self.search_tree_child(self.model.index(row, 3), 3, 'raster')
+#         for mask in self.output_mask_array:
+#             combo.addItem(mask)
+#
+#         def check_attribute_values(selected_index):
+#             print('CHECK', selected_index)
+#             # if self.dialog.validate_time_attribute.isChecked():
+#             #     for l in self.layers:
+#             #         layer_name = combo.itemData(0, Qt.UserRole + 1)
+#             #         selected_attribute = combo.itemText(selected_index)
+#             #         if layer_name == l.name():
+#             #             self.validate_time_atribute(l, selected_attribute)
+#         combo.currentIndexChanged.connect(check_attribute_values)
+#         return combo
+#
+#     def addLayer(self, layer_name):
+#         print('test', layer_name)
+#
+#     def search_tree_child(self, model, column, layer_type):
+#         print('SEARCH')
+#         # layer_type_num = 4
+#         # if layer_type == 'raster':
+#         #     layer_type_num = 2
+#         # row = model.row()
+#         # data = model.sibling(row, layer_type_num).data()
+#         # if data is not None and layer_type == 'vector':
+#         #     self.dialog.treeView.openPersistentEditor(model)
+#         # else:
+#         #     current_index = self.dialog.treeView.indexBelow(model)
+#         #     i = 0
+#         #     valid = True
+#         #     while valid:
+#         #         current_sibling = current_index.sibling(i, layer_type_num)
+#         #         if current_sibling.data() is None:
+#         #             child_index = self.dialog.treeView.indexBelow(current_sibling)
+#         #             if self.dialog.treeView.indexBelow(current_index.sibling(i, 2)).data() == 'raster':
+#         #                 print('RASTER', self.dialog.treeView.indexBelow(current_index.sibling(i, 0)).data())
+#         #                 sibling = current_index.sibling(i, column)
+#         #                 self.dialog.treeView.openPersistentEditor(sibling)
+#         #             elif child_index.data() is not None:
+#         #                 self.search_tree_child(current_index.sibling(i, column), column, layer_type)
+#         #         elif layer_type == 'vector':
+#         #             sibling = current_index.sibling(i, column)
+#         #             self.dialog.treeView.openPersistentEditor(sibling)
+#         #         i += 1
+#         #         valid = current_index.sibling(i, column).isValid()
+#         #         print(valid)
