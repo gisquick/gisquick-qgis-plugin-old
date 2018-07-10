@@ -38,6 +38,7 @@ from qgis.PyQt.QtWidgets import (QItemDelegate,
                                  QMessageBox,
                                  QWidget,
                                  QDialog,
+                                 QLineEdit,
                                  QPushButton)
 from qgis.PyQt.QtGui import QColor, QStandardItemModel, QStandardItem, QCursor
 from qgis.PyQt.QtCore import Qt
@@ -797,6 +798,9 @@ class ProjectPage(WizardPage):
                 if is_vector_layer:
                     date_mask.setText('YYYY-MM-DD HH:mm')
                 else:
+                    # time_attribute.setText('TEXT')
+                    # time_attribute.setEnabled(True)
+                    # time_attribute.setEditable(Qt.AutoText)
                     unix_state.setText('raster')
                 # date_mask.setEditable(Qt.AutoText)
 
@@ -834,11 +838,19 @@ class ProjectPage(WizardPage):
                     overlay_layers.append(l)
             return overlay_layers
 
+        def set_delegate(column, row):
+            pass
+            # if column == 3:
+            #     dialog.treeView.setItemDelegateForRow(row, self.combo_delegate_attribute)
+            # elif column == 4:
+            #     dialog.treeView.setItemDelegateForRow(row, ComboDelegateMask(dialog.treeView))
+
         def search_tree_child(model, column):
             row = model.row()
             data = model.sibling(row, 4).data()
             if data is not None:
                 layer_name = model.sibling(row, 0).data()
+                set_delegate(column, row)
                 self.combo_delegate_attribute.set_current_layer(layer_name, 'vector')
                 dialog.treeView.openPersistentEditor(model)
             else:
@@ -849,6 +861,7 @@ class ProjectPage(WizardPage):
                     current_sibling = current_index.sibling(i, 4)
                     if current_index.sibling(i, 2).data() == 'raster':
                         group_name = model.sibling(row, 0).data()
+                        set_delegate(column, row)
                         self.combo_delegate_attribute.set_current_layer(group_name, 'raster group')
                         dialog.treeView.openPersistentEditor(model)
                     elif current_sibling.data() is None:
@@ -856,6 +869,7 @@ class ProjectPage(WizardPage):
                         if dialog.treeView.indexBelow(current_index.sibling(i, 2)).data() == 'raster':
                             sibling = current_index.sibling(i, column)
                             group_name = current_index.sibling(i, 0).data()
+                            set_delegate(column, i)
                             self.combo_delegate_attribute.set_current_layer(group_name, 'raster group')
                             dialog.treeView.openPersistentEditor(sibling)
                         elif child_index.data() is not None:
@@ -863,6 +877,7 @@ class ProjectPage(WizardPage):
                     else:
                         sibling = current_index.sibling(i, column)
                         layer_name = current_index.sibling(i, 0).data()
+                        set_delegate(column, i)
                         self.combo_delegate_attribute.set_current_layer(layer_name, 'vector')
                         dialog.treeView.openPersistentEditor(sibling)
                     i += 1
@@ -1508,6 +1523,7 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
         index = 0
         if selected_attribute != '':
             # attribute_index = l.fieldNameIndex(selected_attribute) API 2
+            l.name()
             attribute_index = l.fields().lookupField(selected_attribute)
             for feature in l.getFeatures():
                 index += 1
@@ -1530,8 +1546,10 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
             self.remove_messages(l.name())
 
     def createEditor(self, parent, option, index):
+        print('HELLO')
         combo = QComboBox(parent)
         for layer in self.layers:
+            print(layer.name())
             if layer.name() == self.active_layer_name and self.active_layer_type == 'vector':
                 combo.addItem('')
                 for field in layer.fields():
@@ -1539,6 +1557,8 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
                     combo.setItemData(0, layer.name(), Qt.UserRole + 1)
                     combo.setItemData(0, self.active_layer_type, Qt.UserRole + 2)
                 break
+            if layer.name() == self.active_layer_name and self.active_layer_type == 'raster':
+                return QLineEdit(parent)
             elif self.active_layer_type == 'raster group':
                 combo.addItem('')
                 for mask in self.output_mask_array:
@@ -1553,10 +1573,12 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
                 for l in self.layers:
                     layer_name = combo.itemData(0, Qt.UserRole + 1)
                     selected_attribute = combo.itemText(selected_index)
-                    if layer_name == l.name():
+                    if layer_name == l.name() and l.type() == QgsMapLayer.VectorLayer:
                         self.validate_time_atribute(l, selected_attribute)
             elif type == 'raster group':
-                self.showdialog(combo.itemText(selected_index))
+                # self.showdialog(combo.itemText(selected_index))
+                for row in range(0, self.layers_model.rowCount()):
+                    self.search_raster_layers(self.layers_model.index(row, 3), 3)
 
         combo.currentIndexChanged.connect(check_attribute_values)
         return combo
@@ -1565,13 +1587,18 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
         if self.dialog.validate_time_attribute.isChecked():
             # validate selected time attributes
             for l in self.layers:
-                layer_widget = self.layers_model.findItems(
-                    l.name(),
-                    Qt.MatchExactly | Qt.MatchRecursive
-                )[0]
-                current_attribute = layer_widget.model().columnItem(layer_widget, 3).text()
-                if len(current_attribute) > 0:
-                    if self.dialog.validate_time_attribute.isChecked():
+                if (l.type() == QgsMapLayer.VectorLayer):
+                    layer_widget = self.layers_model.findItems(
+                        l.name(),
+                        Qt.MatchExactly | Qt.MatchRecursive
+                    )[0]
+                    current_attribute = layer_widget.model().columnItem(layer_widget, 3).text()
+                    # print(l.name(), current_attribute)
+                    # print(l.type() == QgsMapLayer.VectorLayer)
+                    # print('LEN', len(current_attribute) > 0)
+                    if len(current_attribute) > 0:
+                        # print(l.name())
+                        # print('HERE')
                         self.validate_time_atribute(l, current_attribute)
         else:
             # remove validation messages
@@ -1600,6 +1627,24 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
 
     def close_dialog(self, dialog):
         dialog.reject()
+
+    def search_raster_layers(self, model, column):
+        current_index = self.dialog.treeView.indexBelow(model)
+        i = 0
+        valid = True
+        while valid:
+            current_sibling = current_index.sibling(i, 2)
+            if current_sibling.data() is None:
+                child_index = self.dialog.treeView.indexBelow(current_sibling)
+                if child_index.data() == 'raster':
+                    self.search_raster_layers(current_index.sibling(i, column), column)
+            elif current_index.sibling(i, 2).data() == 'raster':
+                sibling = current_index.sibling(i, column)
+                layer_name = current_index.sibling(i, 0).data()
+                self.set_current_layer(layer_name, 'raster')
+                self.dialog.treeView.openPersistentEditor(sibling)
+            i += 1
+            valid = current_index.sibling(i, column).isValid()
 
 
 class ComboDelegateMask(QItemDelegate):
