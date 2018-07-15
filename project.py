@@ -1619,70 +1619,75 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
         self.active_layer_type = layer_type
 
     def showdialog(self, type):
-        dialog = QDialog()
+        self.modal_dialog = QDialog()
 
-        cofirm_button = QPushButton("OK", dialog)
+        cofirm_button = QPushButton("OK", self.modal_dialog)
         cofirm_button.move(150, 140)
 
-        cancel_button = QPushButton("CANCEL", dialog)
+        cancel_button = QPushButton("CANCEL", self.modal_dialog)
         cancel_button.move(10, 140)
-        cancel_button.clicked.connect(dialog.reject)
+        cancel_button.clicked.connect(self.modal_dialog.reject)
 
         if type == 'interval date':
 
             cofirm_button.clicked.connect(self.compute_interval)
 
-            self.start_date = QLineEdit(dialog)
+            self.start_date = QLineEdit(self.modal_dialog)
             self.start_date.move(90, 15)
-            start_date_label = QLabel("Start date", dialog)
+            start_date_label = QLabel("Start date", self.modal_dialog)
             start_date_label.move(10, 20)
 
-            self.time_step = QLineEdit(dialog)
+            self.time_step = QLineEdit(self.modal_dialog)
             self.time_step.setFixedWidth(57)
             self.time_step.move(90, 45)
 
-            time_step_label = QLabel("Time step", dialog)
+            time_step_label = QLabel("Time step", self.modal_dialog)
             time_step_label.move(10, 50)
 
-            self.time_step_combo = self.create_two_dimensional_combo(dialog, self.time_intervals)
+            self.time_step_combo = self.create_two_dimensional_combo(self.modal_dialog, self.time_intervals)
             self.time_step_combo.move(146, 45)
 
-            self.ascending_radio = QRadioButton(dialog)
+            self.ascending_radio = QRadioButton(self.modal_dialog)
             self.ascending_radio.move(110, 80)
             self.ascending_radio.setChecked(True)
 
-            ascending_label = QLabel("Ascending", dialog)
+            ascending_label = QLabel("Ascending", self.modal_dialog)
             ascending_label.move(10, 80)
 
-            self.descending_radio = QRadioButton(dialog)
+            self.descending_radio = QRadioButton(self.modal_dialog)
             self.descending_radio.move(110, 100)
 
-            ascending_label = QLabel("Descending", dialog)
+            ascending_label = QLabel("Descending", self.modal_dialog)
             ascending_label.move(10, 100)
 
-            dialog.setFixedSize(245, 180)
-            dialog.setWindowTitle("Time interval settings")
+            self.modal_dialog.setFixedSize(245, 180)
+            self.modal_dialog.setWindowTitle("Time interval settings")
 
-        dialog.setWindowModality(Qt.ApplicationModal)
-        dialog.exec_()
+        self.modal_dialog.setWindowModality(Qt.ApplicationModal)
+        self.modal_dialog.exec_()
 
     def compute_interval(self):
-        start_date = self.start_date.text()
+        input_date = self.start_date.text()
         interval = self.time_step.text()
         interval_units = self.time_step_combo.itemData(self.time_step_combo.currentIndex(), Qt.UserRole + 1)
         ascending = self.ascending_radio.isChecked()
         raster_layers_count = self.set_text_input_layout(self.group_name, '')
-        date_mask, contain_character = self.time_validate(start_date, datetime_mask_array)
-        if date_mask != -1:
-            start_date_unix = time.mktime(datetime.datetime.strptime(start_date,date_mask).timetuple())
-            time_array = []
-            for step in range(raster_layers_count):
-                if not ascending:
-                    step = -step
-                time_unix = start_date_unix + step * int(interval) * int(interval_units)
-                date = datetime.datetime.fromtimestamp(time_unix).strftime(date_mask)
-                time_array.append(str(date))
-            self.set_text_input_layout(self.group_name, time_array)
+        date_mask, contain_character = self.time_validate(input_date, datetime_mask_array)
+        try:
+            val = int(interval)
+            if date_mask != -1 and val > 0:
+                start_date_unix = time.mktime(datetime.datetime.strptime(input_date, date_mask).timetuple())
+                time_array = []
+                for step in range(raster_layers_count):
+                    if not ascending:
+                        step = -step
+                    time_unix = start_date_unix + step * int(interval) * int(interval_units)
+                    date = datetime.datetime.fromtimestamp(time_unix).strftime(date_mask)
+                    time_array.append(str(date))
+                self.set_text_input_layout(self.group_name, time_array)
+                self.modal_dialog.reject()
+        except ValueError:
+            pass
 
     def create_two_dimensional_combo(self, parent, data):
         combo = QComboBox(parent)
