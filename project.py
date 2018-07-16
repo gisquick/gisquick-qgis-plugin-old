@@ -54,6 +54,7 @@ from qgis.PyQt.QtXml import QDomDocument
 
 from .utils import to_decimal_array, opt_value
 from .wizard import WizardPage
+from dateutil.relativedelta import relativedelta
 
 AUTHENTICATION_OPTIONS = (
     'all',
@@ -1070,6 +1071,7 @@ class ProjectPage(WizardPage):
 
         min_resolution = self.dialog.min_scale.itemData(self.dialog.min_scale.currentIndex())
         max_resolution = self.dialog.max_scale.itemData(self.dialog.max_scale.currentIndex())
+
         def publish_resolutions(resolutions, min_resolution=min_resolution, max_resolution=max_resolution):
             return [res for res in resolutions if res >= min_resolution and res <= max_resolution]
 
@@ -1090,6 +1092,7 @@ class ProjectPage(WizardPage):
 
         # create base layers metadata
         default_baselayer_name = self.dialog.default_baselayer.currentText()
+
         def base_layers_data(node):
             if node.children:
                 sublayers_data = []
@@ -1505,13 +1508,13 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
     ]
 
     time_intervals = [
-        ['seconds', 1],
-        ['minutes', 60],
-        ['hours', 3600],
-        ['days', 86400],
-        ['weeks', 604800],
-        ['months', 2592000],
-        ['years', 31536000]
+        'seconds',
+        'minutes',
+        'hours',
+        'days',
+        'weeks',
+        'months',
+        'years'
     ]
 
     def __init__(self, parent, layers, layers_model):
@@ -1651,7 +1654,7 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
         time_step_label = QLabel("Time step", self.modal_dialog)
         time_step_label.move(10, 50)
 
-        self.time_step_combo = self.create_two_dimensional_combo(self.modal_dialog, self.time_intervals)
+        self.time_step_combo = self.create_combo(self.modal_dialog, self.time_intervals)
         self.time_step_combo.move(146, 45)
 
         self.ascending_radio = QRadioButton(self.modal_dialog)
@@ -1674,30 +1677,32 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
         self.modal_dialog.exec_()
 
     def compute_interval(self):
-        input_date = self.start_date.text()
+        input_text = self.start_date.text()
         interval = self.time_step.text()
-        interval_units = self.time_step_combo.itemData(self.time_step_combo.currentIndex(), Qt.UserRole + 1)
+        interval_units = self.time_step_combo.currentText()
         ascending = self.ascending_radio.isChecked()
         raster_layers_count = self.set_text_input_layout(self.group_name, '')
-        date_mask, contain_character = self.time_validate(input_date, datetime_mask_array)
+        date_mask, contain_character = self.time_validate(input_text, datetime_mask_array)
 
         try:
             val = int(interval)
             if date_mask != -1 and val > 0:
-                start_date_unix = time.mktime(datetime.datetime.strptime(input_date, date_mask).timetuple())
+                input_date = datetime.datetime.strptime(input_text, date_mask)
                 time_array = []
 
                 for step in range(raster_layers_count):
-                    if not ascending:
-                        step = -step
-                    time_unix = start_date_unix + step * int(interval) * int(interval_units)
-                    date = datetime.datetime.fromtimestamp(time_unix).strftime(date_mask)
-                    time_array.append(str(date))
+                    delta = relativedelta(**{interval_units: int(interval) * step})
+                    if ascending:
+                        date = input_date + delta
+                    else:
+                        date = input_date - delta
+                    time_array.append(date.strftime(date_mask))
 
                 self.set_text_input_layout(self.group_name, time_array)
                 self.modal_dialog.reject()
         except ValueError:
-            pass
+            print(ValueError)
+            # pass
 
     def get_date_from_raster_name(self, group_name):
         regular_expression = r"(\d{2}[\/ -](?:\d{2})[\/ -]\d{2,4})|(\d{2,4}[\/ -](?:\d{2})[\/ -]\d{2})|(\d{4})"
@@ -1721,14 +1726,11 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
                         layer_widget.model().columnItem(layer_widget, 3).setText(date[0])
                         break
 
-    def create_two_dimensional_combo(self, parent, data):
+    def create_combo(self, parent, data):
         combo = QComboBox(parent)
-        idx = 0
 
-        for label, value in data:
+        for label in data:
             combo.addItem(label)
-            combo.setItemData(idx, value, Qt.UserRole + 1)
-            idx += 1
 
         return combo
 
