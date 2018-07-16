@@ -143,6 +143,9 @@ MSG_WARNING = "Warning"
 datetime_mask_array = [
     ["%Y-%m-%d", "YYYY-MM-DD", True],
     ["%d-%m-%Y", "DD-MM-YYYY", False],
+    ["%Y/%m/%d", "YYYY-MM-DD", False],
+    ["%d/%m/%Y", "DD-MM-YYYY", False],
+    ["%Y", "YYYY", True],
     ["%Y-%m-%dT%H:%M:%S", "YYYY-MM-DDTHH:mm", False]
 ]
 
@@ -1527,10 +1530,11 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
         num_time_val = 0
         num_suitable_val = 0
         index = 0
+
         if selected_attribute != '':
-            # attribute_index = l.fieldNameIndex(selected_attribute) API 2
             l.name()
             attribute_index = l.fields().lookupField(selected_attribute)
+
             for feature in l.getFeatures():
                 index += 1
                 feature_value = feature.attributes()[attribute_index]
@@ -1539,20 +1543,24 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
                     num_time_val += 1
                 if is_suitable:
                     num_suitable_val += 1
+
             self.remove_messages(l.name())
             self.set_validation_message(l.name(), num_time_val, num_suitable_val, index)
+
             if num_time_val == 0:
                 self.validation_results[l.name()] = 'invalid'
             elif num_suitable_val == index:
                 self.validation_results[l.name()] = 'valid'
             else:
                 self.validation_results[l.name()] = 'unix'
+
         else:
             del self.validation_results[l.name()]
             self.remove_messages(l.name())
 
     def createEditor(self, parent, option, index):
         combo = QComboBox(parent)
+
         for layer in self.layers:
             if layer.name() == self.active_layer_name and self.active_layer_type == 'vector':
                 combo.addItem('')
@@ -1561,8 +1569,10 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
                     combo.setItemData(0, layer.name(), Qt.UserRole + 1)
                     combo.setItemData(0, self.active_layer_type, Qt.UserRole + 2)
                 break
+
             if layer.name() == self.active_layer_name and self.active_layer_type == 'raster':
                 return QLineEdit(parent)
+
             elif self.active_layer_type == 'raster group':
                 combo.addItem('')
                 for mask in self.output_mask_array:
@@ -1585,17 +1595,18 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
                     self.search_raster_layers(self.layers_model.index(row, 3), 3, self.group_name)
                 # fix text input layout
                 self.set_text_input_layout(self.group_name, '')
-                if selected_index == 2 or selected_index == 3:
-                    self.showdialog(combo.itemText(selected_index))
+                if selected_index == 2:
+                    self.show_interval_dialog()  # combo.itemText(selected_index)
+                elif selected_index == 3:
+                    self.get_date_from_raster_name(self.group_name)
 
         combo.currentIndexChanged.connect(check_attribute_values)
         return combo
 
     def toggle_attribute_validation(self):
         if self.dialog.validate_time_attribute.isChecked():
-            # validate selected time attributes
             for l in self.layers:
-                if (l.type() == QgsMapLayer.VectorLayer):
+                if l.type() == QgsMapLayer.VectorLayer:
                     layer_widget = self.layers_model.findItems(
                         l.name(),
                         Qt.MatchExactly | Qt.MatchRecursive
@@ -1604,13 +1615,11 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
                     if len(current_attribute) > 0:
                         self.validate_time_atribute(l, current_attribute)
         else:
-            # remove validation messages
             for l in self.layers:
                 self.remove_messages(l.name())
 
     def toggle_time_settings(self):
         if not self.dialog.create_time_layers.isChecked():
-            # remove validation messages
             for l in self.layers:
                 self.remove_messages(l.name())
 
@@ -1618,7 +1627,7 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
         self.active_layer_name = layer_name
         self.active_layer_type = layer_type
 
-    def showdialog(self, type):
+    def show_interval_dialog(self):
         self.modal_dialog = QDialog()
 
         cofirm_button = QPushButton("OK", self.modal_dialog)
@@ -1628,40 +1637,38 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
         cancel_button.move(10, 140)
         cancel_button.clicked.connect(self.modal_dialog.reject)
 
-        if type == 'interval date':
+        cofirm_button.clicked.connect(self.compute_interval)
 
-            cofirm_button.clicked.connect(self.compute_interval)
+        self.start_date = QLineEdit(self.modal_dialog)
+        self.start_date.move(90, 15)
+        start_date_label = QLabel("Start date", self.modal_dialog)
+        start_date_label.move(10, 20)
 
-            self.start_date = QLineEdit(self.modal_dialog)
-            self.start_date.move(90, 15)
-            start_date_label = QLabel("Start date", self.modal_dialog)
-            start_date_label.move(10, 20)
+        self.time_step = QLineEdit(self.modal_dialog)
+        self.time_step.setFixedWidth(57)
+        self.time_step.move(90, 45)
 
-            self.time_step = QLineEdit(self.modal_dialog)
-            self.time_step.setFixedWidth(57)
-            self.time_step.move(90, 45)
+        time_step_label = QLabel("Time step", self.modal_dialog)
+        time_step_label.move(10, 50)
 
-            time_step_label = QLabel("Time step", self.modal_dialog)
-            time_step_label.move(10, 50)
+        self.time_step_combo = self.create_two_dimensional_combo(self.modal_dialog, self.time_intervals)
+        self.time_step_combo.move(146, 45)
 
-            self.time_step_combo = self.create_two_dimensional_combo(self.modal_dialog, self.time_intervals)
-            self.time_step_combo.move(146, 45)
+        self.ascending_radio = QRadioButton(self.modal_dialog)
+        self.ascending_radio.move(110, 80)
+        self.ascending_radio.setChecked(True)
 
-            self.ascending_radio = QRadioButton(self.modal_dialog)
-            self.ascending_radio.move(110, 80)
-            self.ascending_radio.setChecked(True)
+        ascending_label = QLabel("Ascending", self.modal_dialog)
+        ascending_label.move(10, 80)
 
-            ascending_label = QLabel("Ascending", self.modal_dialog)
-            ascending_label.move(10, 80)
+        self.descending_radio = QRadioButton(self.modal_dialog)
+        self.descending_radio.move(110, 100)
 
-            self.descending_radio = QRadioButton(self.modal_dialog)
-            self.descending_radio.move(110, 100)
+        ascending_label = QLabel("Descending", self.modal_dialog)
+        ascending_label.move(10, 100)
 
-            ascending_label = QLabel("Descending", self.modal_dialog)
-            ascending_label.move(10, 100)
-
-            self.modal_dialog.setFixedSize(245, 180)
-            self.modal_dialog.setWindowTitle("Time interval settings")
+        self.modal_dialog.setFixedSize(245, 180)
+        self.modal_dialog.setWindowTitle("Time interval settings")
 
         self.modal_dialog.setWindowModality(Qt.ApplicationModal)
         self.modal_dialog.exec_()
@@ -1673,53 +1680,86 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
         ascending = self.ascending_radio.isChecked()
         raster_layers_count = self.set_text_input_layout(self.group_name, '')
         date_mask, contain_character = self.time_validate(input_date, datetime_mask_array)
+
         try:
             val = int(interval)
             if date_mask != -1 and val > 0:
                 start_date_unix = time.mktime(datetime.datetime.strptime(input_date, date_mask).timetuple())
                 time_array = []
+
                 for step in range(raster_layers_count):
                     if not ascending:
                         step = -step
                     time_unix = start_date_unix + step * int(interval) * int(interval_units)
                     date = datetime.datetime.fromtimestamp(time_unix).strftime(date_mask)
                     time_array.append(str(date))
+
                 self.set_text_input_layout(self.group_name, time_array)
                 self.modal_dialog.reject()
         except ValueError:
             pass
 
+    def get_date_from_raster_name(self, group_name):
+        regular_expression = r"(\d{2}[\/ -](?:\d{2})[\/ -]\d{2,4})|(\d{2,4}[\/ -](?:\d{2})[\/ -]\d{2})|(\d{4})"
+
+        for l in self.layers:
+            layer_widget = self.layers_model.findItems(
+                l.name(),
+                Qt.MatchExactly | Qt.MatchRecursive
+            )[0]
+            layer_widget_type = layer_widget.model().columnItem(layer_widget, 2).text()
+
+            if layer_widget_type == 'raster' and layer_widget.parent() and layer_widget.parent().text() == group_name:
+                layer_name = layer_widget.model().columnItem(layer_widget, 0).text()
+                date_strings = re.findall(regular_expression, layer_name)
+
+                for date_list in date_strings:
+                    date = list(filter(None, date_list))
+                    mask, has_special_character = self.time_validate(date[0], datetime_mask_array)
+
+                    if mask != -1:
+                        layer_widget.model().columnItem(layer_widget, 3).setText(date[0])
+                        break
+
     def create_two_dimensional_combo(self, parent, data):
         combo = QComboBox(parent)
         idx = 0
+
         for label, value in data:
             combo.addItem(label)
             combo.setItemData(idx, value, Qt.UserRole + 1)
             idx += 1
+
         return combo
 
     def search_raster_layers(self, model, column, group_name):
         current_index = self.dialog.treeView.indexBelow(model)
         i = 0
         valid = True
+
         while valid:
             current_sibling = current_index.sibling(i, 2)
             parent_name = model.sibling(model.row(), 0).data()
+
             if current_sibling.data() is None:
                 child_index = self.dialog.treeView.indexBelow(current_sibling)
+
                 if child_index.data() == 'raster':
                     self.search_raster_layers(current_index.sibling(i, column), column, group_name)
+
             elif current_index.sibling(i, 2).data() == 'raster' and parent_name == group_name:
                 sibling = current_index.sibling(i, column)
                 layer_name = current_index.sibling(i, 0).data()
                 self.set_current_layer(layer_name, 'raster')
                 self.dialog.treeView.openPersistentEditor(sibling)
+
             i += 1
             valid = current_index.sibling(i, column).isValid()
 
     def set_text_input_layout(self, group_name, text):
         idx = 0
         self.dialog.treeView.hideColumn(3)
+
         for l in self.layers:
             layer_widget = self.layers_model.findItems(
                 l.name(),
@@ -1727,12 +1767,14 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
             )[0]
             layer_widget_type = layer_widget.model().columnItem(layer_widget, 2).text()
             # if : and layer_widget.model().columnItem(layer_widget, 3).text() == ''
+
             if layer_widget_type == 'raster' and layer_widget.parent() and layer_widget.parent().text() == group_name:
                 if isinstance(text, list):
                     layer_widget.model().columnItem(layer_widget, 3).setText(text[idx])
                 else:
                     layer_widget.model().columnItem(layer_widget, 3).setText(text)  # QDate.currentDate().toString()
                 idx += 1
+
         self.dialog.treeView.showColumn(3)
         return idx
 
