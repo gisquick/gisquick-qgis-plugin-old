@@ -1326,6 +1326,23 @@ class ProjectPage(WizardPage):
                             except:
                                 return [], False, ''
 
+        def is_time_raster_node(node):
+            child_nodes = node.children
+            for child_node in child_nodes:
+                child_layer = child_node.layer
+                if child_layer is not None and child_layer.type() != QgsMapLayer.VectorLayer:
+                    layers_model = dialog.treeView.model()
+                    layer_widget = layers_model.findItems(
+                        child_layer.name(),
+                        Qt.MatchExactly | Qt.MatchRecursive
+                    )[0]
+                    time_values = layers_model.columnItem(layer_widget, 3)
+                    if time_values is not None and time_values.text() != "":
+                        time_mask, has_special_character = self.time_validate(time_values.text(), datetime_mask_array)
+                        if time_mask != -1:
+                            return True
+            return False
+
         def create_overlays_data(node):
             sublayers = []
             for child in node.children:
@@ -1333,14 +1350,11 @@ class ProjectPage(WizardPage):
                 if sublayer:
                     sublayers.append(sublayer)
             if sublayers:
-                # # print(node.name)
-                # layers_model = dialog.treeView.model()
-                # layer_widget = layers_model.findItems(
-                #     node.name,
-                #     Qt.MatchExactly | Qt.MatchRecursive
-                # )[0]
-                # print(layers_model.columnItem(layer_widget, 0).text())
+                time_group = False
+                if node.name:
+                    time_group = is_time_raster_node(node)
                 return {
+                    'spatio_temporal': time_group,
                     'name': node.name,
                     'layers': sublayers
                 }
