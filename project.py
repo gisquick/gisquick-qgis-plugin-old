@@ -830,7 +830,7 @@ class ProjectPage(WizardPage):
         def create_horizontal_labels():
             layers_model.columnItem = types.MethodType(columnItem, layers_model)
             layers_model.setHorizontalHeaderLabels(
-                ['Layer', 'Hidden', '', 'Time Attribute', 'Date Mask']
+                ['Layer', 'Hidden', '', 'Time Values', 'Date Mask']
             )
 
             dialog.treeView.setModel(layers_model)
@@ -918,15 +918,18 @@ class ProjectPage(WizardPage):
             dialog.treeView.hideColumn(4)
             layers_model.itemChanged.connect(layer_item_changed)
             dialog.validate_time_attribute.setEnabled(False)
+            dialog.output_date_format.setEnabled(False)
 
         def toggle_time_settings():
             if dialog.create_time_layers.isChecked():
                 dialog.validate_time_attribute.setEnabled(True)
+                dialog.output_date_format.setEnabled(True)
                 dialog.treeView.showColumn(3)
-                dialog.treeView.showColumn(4)
             else:
                 dialog.validate_time_attribute.setChecked(False)
                 dialog.validate_time_attribute.setEnabled(False)
+                dialog.output_date_format.setChecked(False)
+                dialog.output_date_format.setEnabled(False)
                 dialog.treeView.hideColumn(3)
                 dialog.treeView.hideColumn(4)
 
@@ -939,7 +942,14 @@ class ProjectPage(WizardPage):
                 layer_widget.model().columnItem(layer_widget, 2).setText('X#$X')
                 layer_widget.model().columnItem(layer_widget, 2).setText(current_attribute)
 
+        def toggle_output_mask():
+            if dialog.output_date_format.isChecked():
+                dialog.treeView.showColumn(4)
+            else:
+                dialog.treeView.hideColumn(4)
+
         dialog.create_time_layers.clicked.connect(toggle_time_settings)
+        dialog.output_date_format.clicked.connect(toggle_output_mask)
 
         if self.plugin.last_metadata:
             try:
@@ -1700,11 +1710,11 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
                 time_array = []
 
                 for step in range(raster_layers_count):
-                    delta = relativedelta(**{interval_units: int(interval) * step})
+                    time_increment = relativedelta(**{interval_units: int(interval) * step})
                     if ascending:
-                        date = input_date + delta
+                        date = input_date + time_increment
                     else:
-                        date = input_date - delta
+                        date = input_date - time_increment
                     time_array.append(date.strftime(date_mask))
 
                 self.set_text_input_layout(self.group_name, time_array, True)

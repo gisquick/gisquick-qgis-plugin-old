@@ -125,7 +125,7 @@ QGroupBox::title {
            <item>
             <widget class="QGroupBox" name="osm">
              <property name="title">
-              <string>OpenStreeMap</string>
+              <string>OpenS&amp;treeMap</string>
              </property>
              <property name="checkable">
               <bool>true</bool>
@@ -150,7 +150,7 @@ QGroupBox::title {
               </size>
              </property>
              <property name="title">
-              <string>MapBox</string>
+              <string>MapBo&amp;x</string>
              </property>
              <property name="checkable">
               <bool>true</bool>
@@ -441,6 +441,28 @@ QGroupBox::title {
            <string/>
           </property>
           <layout class="QGridLayout" name="gridLayout">
+           <item row="3" column="0" colspan="11">
+            <widget class="QTreeView" name="treeView">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+               <horstretch>2</horstretch>
+               <verstretch>1</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="alternatingRowColors">
+              <bool>false</bool>
+             </property>
+             <property name="selectionMode">
+              <enum>QAbstractItemView::MultiSelection</enum>
+             </property>
+             <attribute name="headerDefaultSectionSize">
+              <number>110</number>
+             </attribute>
+             <attribute name="headerStretchLastSection">
+              <bool>false</bool>
+             </attribute>
+            </widget>
+           </item>
            <item row="1" column="3">
             <widget class="QCheckBox" name="create_time_layers">
              <property name="sizePolicy">
@@ -467,28 +489,6 @@ QGroupBox::title {
              </property>
             </widget>
            </item>
-           <item row="3" column="0" colspan="7">
-            <widget class="QTreeView" name="treeView">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-               <horstretch>2</horstretch>
-               <verstretch>1</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="alternatingRowColors">
-              <bool>false</bool>
-             </property>
-             <property name="selectionMode">
-              <enum>QAbstractItemView::MultiSelection</enum>
-             </property>
-             <attribute name="headerDefaultSectionSize">
-              <number>110</number>
-             </attribute>
-             <attribute name="headerStretchLastSection">
-              <bool>false</bool>
-             </attribute>
-            </widget>
-           </item>
            <item row="1" column="1">
             <widget class="QCheckBox" name="use_mapcache">
              <property name="enabled">
@@ -502,7 +502,7 @@ QGroupBox::title {
              </property>
              <property name="minimumSize">
               <size>
-               <width>12</width>
+               <width>14</width>
                <height>0</height>
               </size>
              </property>
@@ -553,6 +553,32 @@ QGroupBox::title {
              </property>
             </widget>
            </item>
+           <item row="1" column="7">
+            <widget class="QCheckBox" name="output_date_format">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="6">
+            <widget class="QLabel" name="label_5">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>        set output date format</string>
+             </property>
+            </widget>
+           </item>
           </layout>
          </widget>
         </item>
@@ -579,8 +605,8 @@ QGroupBox::title {
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>685</width>
-             <height>523</height>
+             <width>687</width>
+             <height>509</height>
             </rect>
            </property>
            <property name="styleSheet">
