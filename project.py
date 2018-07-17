@@ -140,7 +140,7 @@ BING_LAYERS = (
 MSG_ERROR = "Error"
 MSG_WARNING = "Warning"
 
-# time format masks
+# datetime format masks
 datetime_mask_array = [
     ["%Y-%m-%d", "YYYY-MM-DD", True],
     ["%d-%m-%Y", "DD-MM-YYYY", False],
@@ -148,6 +148,15 @@ datetime_mask_array = [
     ["%d/%m/%Y", "DD-MM-YYYY", False],
     ["%Y", "YYYY", True],
     ["%Y-%m-%dT%H:%M:%S", "YYYY-MM-DDTHH:mm", False]
+]
+
+# output datetime format masks
+output_mask_array = [
+    'YYYY-MM-DD HH:mm',
+    'YYYY-MM-DD',
+    'DD-MM-YYYY HH:mm',
+    'DD-MM-YYYY',
+    'HH:mm'
 ]
 
 unix_time_layer = "UTconvert"  # limited length by 10 characters
@@ -807,7 +816,7 @@ class ProjectPage(WizardPage):
                 )
                 date_mask.setEnabled(False)
                 if is_vector_layer:
-                    date_mask.setText('YYYY-MM-DD HH:mm')
+                    date_mask.setText(output_mask_array[0])
                 else:
                     unix_state.setText('raster')
 
@@ -825,7 +834,7 @@ class ProjectPage(WizardPage):
         def create_horizontal_labels():
             layers_model.columnItem = types.MethodType(columnItem, layers_model)
             layers_model.setHorizontalHeaderLabels(
-                ['Layer', 'Hidden', '', 'Time Values', 'Date Mask']
+                ['Layer', 'Hidden', '', 'Time Values', 'Date Format']
             )
 
             dialog.treeView.setModel(layers_model)
@@ -846,6 +855,7 @@ class ProjectPage(WizardPage):
         def search_tree_child(model, column):
             row = model.row()
             data = model.sibling(row, 4).data()
+
             if data is not None:
                 layer_name = model.sibling(row, 0).data()
                 self.combo_delegate_attribute.set_current_layer(layer_name, 'vector')
@@ -854,6 +864,7 @@ class ProjectPage(WizardPage):
                 current_index = dialog.treeView.indexBelow(model)
                 i = 0
                 valid = True
+
                 while valid:
                     current_sibling = current_index.sibling(i, 4)
                     if current_index.sibling(i, 2).data() == 'raster':
@@ -1340,8 +1351,18 @@ class ProjectPage(WizardPage):
                     if time_values is not None and time_values.text() != "":
                         time_mask, has_special_character = self.time_validate(time_values.text(), datetime_mask_array)
                         if time_mask != -1:
-                            return True
-            return False
+                            layers_model = dialog.treeView.model()
+                            layer_widget = layers_model.findItems(
+                                node.name,
+                                Qt.MatchExactly | Qt.MatchRecursive
+                            )[0]
+                            mask_item = layers_model.columnItem(layer_widget, 4)
+                            if mask_item is not None:
+                                output_datetime_mask = mask_item.text()
+                            else:
+                                output_datetime_mask = output_mask_array[0]
+                            return True, output_datetime_mask
+            return False, ''
 
         def create_overlays_data(node):
             sublayers = []
@@ -1351,9 +1372,11 @@ class ProjectPage(WizardPage):
                     sublayers.append(sublayer)
             if sublayers:
                 time_group = False
+                output_mask = ''
                 if node.name:
-                    time_group = is_time_raster_node(node)
+                    time_group, output_mask = is_time_raster_node(node)
                 return {
+                    'output_datetime_mask': output_mask,
                     'spatio_temporal': time_group,
                     'name': node.name,
                     'layers': sublayers
@@ -1534,7 +1557,7 @@ class ProjectPage(WizardPage):
 
 
 class ComboDelegateAttribute(ProjectPage, QItemDelegate):
-    output_mask_array = [
+    raster_options = [
         'manual date',
         'interval date',
         'date from name'
@@ -1610,7 +1633,7 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
                 return QLineEdit(parent)
             elif self.active_layer_type == 'raster group':
                 combo.addItem('')
-                for mask in self.output_mask_array:
+                for mask in self.raster_options:
                     combo.addItem(mask, 1)
                     combo.setItemData(0, self.active_layer_name, Qt.UserRole + 1)
                     combo.setItemData(0, self.active_layer_type, Qt.UserRole + 2)
@@ -1829,16 +1852,8 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
 
 class ComboDelegateMask(QItemDelegate):
 
-    output_mask_array = [
-        'YYYY-MM-DD HH:mm',
-        'YYYY-MM-DD',
-        'DD-MM-YYYY HH:mm',
-        'DD-MM-YYYY',
-        'HH:mm'
-    ]
-
     def createEditor(self, parent, option, index):
         combo = QComboBox(parent)
-        for mask in self.output_mask_array:
+        for mask in output_mask_array:
             combo.addItem(mask)
         return combo
