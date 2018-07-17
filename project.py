@@ -809,13 +809,8 @@ class ProjectPage(WizardPage):
                 if is_vector_layer:
                     date_mask.setText('YYYY-MM-DD HH:mm')
                 else:
-                    # time_attribute.setText('TEXT')
-                    # time_attribute.setEnabled(True)
-                    # time_attribute.setEditable(Qt.AutoText)
                     unix_state.setText('raster')
-                # date_mask.setEditable(Qt.AutoText)
 
-                # time_attribute.setEditable(Qt.AutoText)
                 return [layer_item, hidden, unix_state, time_attribute, date_mask]
 
         def columnItem(self, item, column):
@@ -835,7 +830,6 @@ class ProjectPage(WizardPage):
 
             dialog.treeView.setModel(layers_model)
             layers_root = create_layer_widget(self.overlay_layers_tree)
-            # print('layers_root', self.overlay_layers_tree.children)
 
             while layers_root.rowCount():
                 layers_model.appendRow(layers_root.takeRow(0))
@@ -1339,6 +1333,13 @@ class ProjectPage(WizardPage):
                 if sublayer:
                     sublayers.append(sublayer)
             if sublayers:
+                # # print(node.name)
+                # layers_model = dialog.treeView.model()
+                # layer_widget = layers_model.findItems(
+                #     node.name,
+                #     Qt.MatchExactly | Qt.MatchRecursive
+                # )[0]
+                # print(layers_model.columnItem(layer_widget, 0).text())
                 return {
                     'name': node.name,
                     'layers': sublayers
@@ -1382,27 +1383,6 @@ class ProjectPage(WizardPage):
                         'keyword_list': layer.keywordList()
                     }
                 }
-
-                stat = None
-                if dialog.create_time_layers.isChecked() and layers_model.columnItem(layer_widget, 3) is not None:
-                    if layers_model.columnItem(layer_widget, 3).text() != "":
-                        process_time_layers(
-                            layer.name(),
-                            layers_model.columnItem(layer_widget, 3).text())
-                        min_max, valid, input_datetime_mask = process_time_layers(
-                            layer.name(),
-                            layers_model.columnItem(layer_widget, 3).text())
-                        if valid:
-                            layer_data['original_time_attribute'] = layers_model.columnItem(layer_widget, 3).text()
-                            layer_data['output_datetime_mask'] = layers_model.columnItem(layer_widget, 4).text()
-                            layer_data['time_values'] = min_max
-                            if input_datetime_mask:
-                                layer_data['unix'] = False
-                                layer_data['input_datetime_mask'] = find_moment_mask(datetime_mask_array,
-                                                                                     input_datetime_mask)
-                            else:
-                                layer_data['unix'] = True
-                                layer_data['time_attribute'] = unix_time_layer
 
                 if layer.attribution():
                     layer_data['attribution'] = {
@@ -1461,6 +1441,35 @@ class ProjectPage(WizardPage):
                         layer_data['queryable'] = False
                 else:
                     layer_data['type'] = 'raster'
+
+                if dialog.create_time_layers.isChecked() and layer_data['type'] == 'vector':
+                    time_values = layers_model.columnItem(layer_widget, 3)
+                    if time_values is not None and time_values.text() != "":
+                        process_time_layers(
+                            layer.name(),
+                            time_values.text())
+                        min_max, valid, input_datetime_mask = process_time_layers(
+                            layer.name(),
+                            time_values.text())
+                        if valid:
+                            layer_data['original_time_attribute'] = time_values.text()
+                            layer_data['output_datetime_mask'] = layers_model.columnItem(layer_widget, 4).text()
+                            layer_data['time_values'] = min_max
+                            if input_datetime_mask:
+                                layer_data['unix'] = False
+                                layer_data['input_datetime_mask'] = find_moment_mask(datetime_mask_array,
+                                                                                     input_datetime_mask)
+                            else:
+                                layer_data['unix'] = True
+                                layer_data['time_attribute'] = unix_time_layer
+                elif dialog.create_time_layers.isChecked() and layer_data['type'] == 'raster':
+                    time_values = layers_model.columnItem(layer_widget, 3)
+                    if time_values is not None and time_values.text() != "":
+                        time_mask, has_special_character = self.time_validate(time_values.text(), datetime_mask_array)
+                        if time_mask != -1:
+                            time_value_unix = time.mktime(datetime.datetime.strptime(time_values.text(),
+                                                                                     time_mask).timetuple())
+                            layer_data['time_stamp'] = time_value_unix
                 return layer_data
 
         metadata['overlays'] = []
@@ -1585,7 +1594,6 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
 
             if layer.name() == self.active_layer_name and self.active_layer_type == 'raster':
                 return QLineEdit(parent)
-
             elif self.active_layer_type == 'raster group':
                 combo.addItem('')
                 for mask in self.output_mask_array:
@@ -1595,19 +1603,17 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
                 break
 
         def check_attribute_values(selected_index):
-            type = combo.itemData(0, Qt.UserRole + 2)
+            layer_type = combo.itemData(0, Qt.UserRole + 2)
 
-            if self.dialog.validate_time_attribute.isChecked() and type == 'vector':
+            if self.dialog.validate_time_attribute.isChecked() and layer_type == 'vector':
                 for l in self.layers:
                     layer_name = combo.itemData(0, Qt.UserRole + 1)
                     selected_attribute = combo.itemText(selected_index)
                     if layer_name == l.name() and l.type() == QgsMapLayer.VectorLayer:
                         self.validate_time_atribute(l, selected_attribute)
-
-            elif type == 'raster group':
+            elif layer_type == 'raster group':
                 self.group_name = combo.itemData(0, Qt.UserRole + 1)
                 open_persistent_editor = True
-
                 if selected_index == 0:
                     open_persistent_editor = False
                 for row in range(0, self.layers_model.rowCount()):
