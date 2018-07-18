@@ -1277,9 +1277,9 @@ class ProjectPage(WizardPage):
                             min_atr = min(values)
                             max_atr = max(values)
                             min_atr = time.mktime(
-                                datetime.datetime.strptime(min_atr.encode('latin-1'), mask_value).timetuple())
+                                datetime.datetime.strptime(str(min_atr), mask_value).timetuple())
                             max_atr = time.mktime(
-                                datetime.datetime.strptime(max_atr.encode('latin-1'), mask_value).timetuple())
+                                datetime.datetime.strptime(str(max_atr), mask_value).timetuple())
 
                             return [min_atr, max_atr], True, mask_value
 
@@ -1339,30 +1339,29 @@ class ProjectPage(WizardPage):
 
         def is_time_raster_node(node):
             child_nodes = node.children
+            model = dialog.treeView.model()
             for child_node in child_nodes:
                 child_layer = child_node.layer
                 if child_layer is not None and child_layer.type() != QgsMapLayer.VectorLayer:
-                    layers_model = dialog.treeView.model()
-                    layer_widget = layers_model.findItems(
+                    layer_widget = model.findItems(
                         child_layer.name(),
                         Qt.MatchExactly | Qt.MatchRecursive
                     )[0]
-                    time_values = layers_model.columnItem(layer_widget, 3)
+                    time_values = model.columnItem(layer_widget, 3)
                     if time_values is not None and time_values.text() != "":
                         time_mask, has_special_character = self.time_validate(time_values.text(), datetime_mask_array)
                         if time_mask != -1:
-                            layers_model = dialog.treeView.model()
-                            layer_widget = layers_model.findItems(
-                                node.name,
-                                Qt.MatchExactly | Qt.MatchRecursive
-                            )[0]
-                            mask_item = layers_model.columnItem(layer_widget, 4)
-                            if mask_item is not None:
-                                output_datetime_mask = mask_item.text()
-                            else:
-                                output_datetime_mask = output_mask_array[0]
-                            return True, output_datetime_mask
-            return False, ''
+                            # node_widget = model.findItems(
+                            #     node.name,
+                            #     Qt.MatchExactly | Qt.MatchRecursive
+                            # )[0]
+                            # mask_item = model.columnItem(node_widget, 4)
+                            # if mask_item is not None:
+                            #     output_datetime_mask = mask_item.text()
+                            # else:
+                            #     output_datetime_mask = output_mask_array[0]
+                            return True  # , output_datetime_mask
+            return False  # , ''
 
         def create_overlays_data(node):
             sublayers = []
@@ -1372,11 +1371,11 @@ class ProjectPage(WizardPage):
                     sublayers.append(sublayer)
             if sublayers:
                 time_group = False
-                output_mask = ''
+                # output_mask = ''
                 if node.name:
-                    time_group, output_mask = is_time_raster_node(node)
+                    time_group = is_time_raster_node(node)  # , output_mask
                 return {
-                    'output_datetime_mask': output_mask,
+                    # 'output_datetime_mask': output_mask,
                     'spatio_temporal': time_group,
                     'name': node.name,
                     'layers': sublayers
@@ -1481,6 +1480,7 @@ class ProjectPage(WizardPage):
 
                 if dialog.create_time_layers.isChecked() and layer_data['type'] == 'vector':
                     time_values = layers_model.columnItem(layer_widget, 3)
+
                     if time_values is not None and time_values.text() != "":
                         process_time_layers(
                             layer.name(),
@@ -1500,13 +1500,29 @@ class ProjectPage(WizardPage):
                                 layer_data['unix'] = True
                                 layer_data['time_attribute'] = unix_time_layer
                 elif dialog.create_time_layers.isChecked() and layer_data['type'] == 'raster':
+                    node_name = node.parent.name
+
+                    if node_name:
+                        node_model = dialog.treeView.model()
+                        node_widget = node_model.findItems(
+                            node_name,
+                            Qt.MatchExactly | Qt.MatchRecursive
+                        )[0]
+                        mask_item = node_model.columnItem(node_widget, 4)
+                        if mask_item is not None:
+                            layer_data['output_datetime_mask'] = mask_item.text()
+                        else:
+                            layer_data['output_datetime_mask'] = output_mask_array[0]
+
                     time_values = layers_model.columnItem(layer_widget, 3)
+
                     if time_values is not None and time_values.text() != "":
                         time_mask, has_special_character = self.time_validate(time_values.text(), datetime_mask_array)
                         if time_mask != -1:
                             time_value_unix = time.mktime(datetime.datetime.strptime(time_values.text(),
                                                                                      time_mask).timetuple())
                             layer_data['time_stamp'] = time_value_unix
+                            layer_data['unix'] = False
                 return layer_data
 
         metadata['overlays'] = []

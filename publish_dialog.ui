@@ -549,7 +549,7 @@ QGroupBox::title {
               </sizepolicy>
              </property>
              <property name="text">
-              <string>        validate time attribute</string>
+              <string>        Validate time attribute</string>
              </property>
             </widget>
            </item>
@@ -575,7 +575,7 @@ QGroupBox::title {
               </sizepolicy>
              </property>
              <property name="text">
-              <string>        set output date format</string>
+              <string>        Set output date format</string>
              </property>
             </widget>
            </item>
@@ -605,7 +605,7 @@ QGroupBox::title {
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>687</width>
+             <width>375</width>
              <height>509</height>
             </rect>
            </property>
