@@ -843,6 +843,8 @@ class ProjectPage(WizardPage):
             while layers_root.rowCount():
                 layers_model.appendRow(layers_root.takeRow(0))
             dialog.treeView.header().setSectionResizeMode(0, QHeaderView.Stretch)
+            dialog.treeView.header().setSectionResizeMode(3, QHeaderView.ResizeToContents)
+            dialog.treeView.header().setSectionResizeMode(4, QHeaderView.ResizeToContents)
             dialog.treeView.header().setVisible(True)
 
         def get_overlay_layers(all_layers):
@@ -1351,17 +1353,8 @@ class ProjectPage(WizardPage):
                     if time_values is not None and time_values.text() != "":
                         time_mask, has_special_character = self.time_validate(time_values.text(), datetime_mask_array)
                         if time_mask != -1:
-                            # node_widget = model.findItems(
-                            #     node.name,
-                            #     Qt.MatchExactly | Qt.MatchRecursive
-                            # )[0]
-                            # mask_item = model.columnItem(node_widget, 4)
-                            # if mask_item is not None:
-                            #     output_datetime_mask = mask_item.text()
-                            # else:
-                            #     output_datetime_mask = output_mask_array[0]
-                            return True  # , output_datetime_mask
-            return False  # , ''
+                            return True
+            return False
 
         def create_overlays_data(node):
             sublayers = []
@@ -1371,11 +1364,9 @@ class ProjectPage(WizardPage):
                     sublayers.append(sublayer)
             if sublayers:
                 time_group = False
-                # output_mask = ''
                 if node.name:
-                    time_group = is_time_raster_node(node)  # , output_mask
+                    time_group = is_time_raster_node(node)
                 return {
-                    # 'output_datetime_mask': output_mask,
                     'spatio_temporal': time_group,
                     'name': node.name,
                     'layers': sublayers
