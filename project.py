@@ -1260,10 +1260,11 @@ class ProjectPage(WizardPage):
                 max_atr = max(attribute_values)
                 return [min_atr, max_atr]
 
-        def process_time_layers(layer_name, attribute):
+        def process_time_vector_layers(layer_name, attribute):
             statistics = {}
             for l in self.plugin.layers_list():
                 if l.name() == layer_name:
+
                     if dialog.validate_time_attribute.isChecked():
                         valid_state = self.combo_delegate_attribute.validation_results.get(l.name())
                         if valid_state == 'valid':
@@ -1305,12 +1306,10 @@ class ProjectPage(WizardPage):
                                 feature_idx += 1
 
                             l.updateFields()
-
                             statistics['features'] = feature_idx
 
                             # get min max unix time
                             return get_min_max_attribute(l, new_idx), True, ''
-
                     else:
                         # fix_print_with_import
                         attribute_index = l.fields().lookupField(attribute)
@@ -1324,7 +1323,6 @@ class ProjectPage(WizardPage):
                             values = []
                             for feature in l.getFeatures():
                                 values.append(feature.attributes()[attribute_index])
-
                             try:
                                 min_atr = min(values)
                                 max_atr = max(values)
@@ -1469,14 +1467,14 @@ class ProjectPage(WizardPage):
                 else:
                     layer_data['type'] = 'raster'
 
-                if dialog.create_time_layers.isChecked() and layer_data['type'] == 'vector':
+                if dialog.create_time_layers.isChecked() and layer.type() == QgsMapLayer.VectorLayer:
                     time_values = layers_model.columnItem(layer_widget, 3)
 
                     if time_values is not None and time_values.text() != "":
-                        process_time_layers(
+                        process_time_vector_layers(
                             layer.name(),
                             time_values.text())
-                        min_max, valid, input_datetime_mask = process_time_layers(
+                        min_max, valid, input_datetime_mask = process_time_vector_layers(
                             layer.name(),
                             time_values.text())
                         if valid:
@@ -1504,7 +1502,6 @@ class ProjectPage(WizardPage):
                             layer_data['output_datetime_mask'] = mask_item.text()
                         else:
                             layer_data['output_datetime_mask'] = output_mask_array[0]
-
                     time_values = layers_model.columnItem(layer_widget, 3)
 
                     if time_values is not None and time_values.text() != "":
@@ -1619,7 +1616,6 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
                 self.validation_results[l.name()] = 'valid'
             else:
                 self.validation_results[l.name()] = 'unix'
-
         else:
             del self.validation_results[l.name()]
             self.remove_messages(l.name())
@@ -1818,7 +1814,6 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
                                               column,
                                               group_name,
                                               open_persistent_editor)
-
             elif current_index.sibling(i, 2).data() == 'raster' and parent_name == group_name:
                 sibling = current_index.sibling(i, column)
                 layer_name = current_index.sibling(i, 0).data()
@@ -1827,7 +1822,6 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
                     self.dialog.treeView.openPersistentEditor(sibling)
                 else:
                     self.dialog.treeView.closePersistentEditor(sibling)
-
             i += 1
             valid = current_index.sibling(i, column).isValid()
 
@@ -1847,10 +1841,8 @@ class ComboDelegateAttribute(ProjectPage, QItemDelegate):
                     layer_widget.model().columnItem(layer_widget, 3).setText(text[idx])
                 elif text != '':
                     layer_widget.model().columnItem(layer_widget, 3).setText(text)
-
                 if not open_persistent_editor:
                     layer_widget.model().columnItem(layer_widget, 3).setText('')
-
                 idx += 1
 
         self.dialog.treeView.showColumn(3)
