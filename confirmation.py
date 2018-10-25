@@ -132,6 +132,8 @@ class ConfirmationPage(WizardPage):
             #     if response == QMessageBox.Yes:
             #         overwrite = None
 
+            # set busy cursor
+            QApplication.setOverrideCursor(Qt.WaitCursor)
             # copy/link collected project files
             fn = os.symlink if link else shutil.copy
             for publish_dir, project_files in publish_files.iteritems():
@@ -149,14 +151,20 @@ class ConfirmationPage(WizardPage):
                             publish_path,
                             os.path.basename(dsfile)
                         )
+                        # copy target only if doesn't exist or out-dated
                         if not os.path.exists(dstfile) or \
                            os.stat(dsfile).st_mtime > os.stat(dstfile).st_mtime:
+                            # check if target directories exist
+                            dirname = os.path.dirname(dstfile)
+                            if not os.path.exists(dirname):
+                                os.makedirs(dirname)
                             fn(dsfile, dstfile)
                 except (shutil.Error, IOError) as e:
                     messages.append("Failed to copy data source: {0}".format(e))
-
+            # restore original cursor
+            QApplication.restoreOverrideCursor()
             if messages:
-                raise StandardError("Copying project files failed:\n{0}".format(os.linesep.join(messages)))
+                raise StandardError("Copying project data files failed:\n{0}".format(os.linesep.join(messages)))
 
         def create_zip_project_file():
             dirpath = os.path.abspath(
