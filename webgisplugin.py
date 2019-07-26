@@ -5,7 +5,6 @@
  Publish your projects into Gisquick application
  ***************************************************************************/
 """
-
 import os
 import sys
 import re
@@ -13,31 +12,32 @@ import time
 import json
 import codecs
 import subprocess
-import ConfigParser
+import configparser
 from decimal import Decimal
 
 # Import the PyQt and QGIS libraries
-import PyQt4.uic
-from qgis.core import *
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+import PyQt5.uic
+from qgis.core import QgsMapLayer, QgsProject, QgsLayerTreeLayer
+from qgis.PyQt.QtWidgets import QAction, QMessageBox
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
 
 # Initialize Qt resources from file resources.py
-import resources_rc
+from . import resources_rc
 
-from utils import *
-from project import ProjectPage
-from topics import TopicsPage
-from publish import PublishPage
-from confirmation import ConfirmationPage
+from .utils import scales_to_resolutions, resolutions_to_scales, to_decimal_array
+from .project import ProjectPage
+from .topics import TopicsPage
+from .publish import PublishPage
+from .confirmation import ConfirmationPage
 
 GISLAB_VERSION_FILE = "/etc/gislab_version"
 
-__metadata__ = ConfigParser.ConfigParser()
+__metadata__ = configparser.ConfigParser()
 __metadata__.read(os.path.join(os.path.dirname(__file__), 'metadata.txt'))
 
 
-class Node(object):
+class Node:
     """
     Tree node element for holding information about layers
     organization in the tree structure.
@@ -220,10 +220,9 @@ class WebGisPlugin:
             max_res_exclusive, min_res_inclusive = self.scales_to_resolutions(
                 [max_scale_exclusive, min_scale_inclusive]
             )
-            return filter(
-                lambda res: res >= min_res_inclusive and res < max_res_exclusive,
-                resolutions
-            )
+            return [
+                res for res in resolutions if res >= min_res_inclusive and \
+                res < max_res_exclusive]
         return resolutions
 
     def wmsc_layer_resolutions(self, layer):
@@ -258,10 +257,10 @@ class WebGisPlugin:
         # collect set of all resolutions from WMSC base layers
         base_layers = {
             layer.id(): layer
-            for layer in self.iface.legendInterface().layers()
+            for layer in QgsProject.instance().mapLayers().values()
                 if self.is_base_layer_for_publish(layer)
         }
-        for layer in base_layers.itervalues():
+        for layer in list(base_layers.values()):
             layer_resolutions = self.wmsc_layer_resolutions(layer)
             if layer_resolutions:
                 project_tile_resolutions.update(layer_resolutions)
@@ -271,7 +270,7 @@ class WebGisPlugin:
         if ok and scales:
             scales = [int(scale.split(":")[-1]) for scale in scales]
             # filter duplicit scales
-            scales = filter(lambda scale: scale not in wmsc_layers_scales, scales)
+            scales = [scale for scale in scales if scale not in wmsc_layers_scales]
             project_tile_resolutions.update(
                 self.scales_to_resolutions(sorted(scales, reverse=True))
             )
@@ -285,24 +284,9 @@ class WebGisPlugin:
         Returns:
             List[qgis.core.QgsMapLayer]: project's layers
         """
-        return self.iface.legendInterface().layers()
-
-    def _get_project_layers_tree(self):
-        """Returns root layer node of all project layers.
-
-        Returns:
-            webgisplugin.Node: project layers tree (root node)
-        """
-        legend_iface = self.iface.legendInterface()
-        layers_reletionship = legend_iface.groupLayerRelationship()
-        layers_root = Node('')
-        for parent_name, child_names in layers_reletionship:
-            parent = layers_root.find(parent_name)
-            if not parent:
-                parent = Node(parent_name)
-                layers_root.append(parent)
-            parent.append(*child_names)
-        return layers_root
+        return [
+            tree_layer.layer() for tree_layer in \
+            QgsProject.instance().layerTreeRoot().findLayers()]
 
     def get_project_base_layers(self):
         """Returns root layer node of all base layers.
@@ -310,27 +294,33 @@ class WebGisPlugin:
         Returns:
             webgisplugin.Node: project base layers tree (root node)
         """
-        # build complete layers tree
-        layers_root = self._get_project_layers_tree()
 
-        # filter to base layers only
-        base_layers = {
-            layer.id(): layer
-            for layer in self.layers_list()
-                if self.is_base_layer_for_publish(layer)
-        }
+        def overlays_tree(tree_node):
+            if isinstance(tree_node, QgsLayerTreeLayer):
+                layer = tree_node.layer()
+                if self.is_base_layer_for_publish(layer):
+                    return Node(layer.id(), layer=layer)
+            else:
+                children = []
+                for child_tree_node in tree_node.children():
+                    node = overlays_tree(child_tree_node)
+                    if node:
+                        children.append(node)
+                if children:
+                    return Node(tree_node.name(), children)
 
-        def base_tree(node):
-            base_children = []
-            for child in node.children:
-                base_child = base_tree(child)
-                if base_child:
-                    base_children.append(base_child)
-            if base_children:
-                return Node(node.name, base_children)
-            elif not node.children and node.name in base_layers:
-                return Node(node.name, layer=base_layers[node.name])
-        return base_tree(layers_root)
+        root_node = self.iface.layerTreeView().layerTreeModel().rootGroup()
+        tree = overlays_tree(root_node)
+
+        # def dump_node(node, depth=0):
+        #     print('  ' * depth, node.name)
+        #     if node.children:
+        #         for child in node.children:
+        #             dump_node(child, depth + 1)
+        #
+        # dump_node(tree)
+        return tree
+
 
     def get_project_layers(self):
         """Returns root layer node of project's overlay layers.
@@ -338,27 +328,32 @@ class WebGisPlugin:
         Returns:
             webgisplugin.Node: project overlay layers tree (root node)
         """
-        # build complete layers tree
-        layers_root = self._get_project_layers_tree()
 
-        # filter to overlay layers only
-        overlay_layers = {
-            layer.id(): layer
-            for layer in self.layers_list()
-                if self.is_overlay_layer_for_publish(layer)
-        }
-        def overlays_tree(node):
-            overlay_children = []
-            for child in node.children:
-                overlay_child = overlays_tree(child)
-                if overlay_child:
-                    overlay_children.append(overlay_child)
-            if overlay_children:
-                return Node(node.name, overlay_children)
-            elif not node.children and node.name in overlay_layers:
-                return Node(node.name, layer=overlay_layers[node.name])
+        def overlays_tree(tree_node):
+            if isinstance(tree_node, QgsLayerTreeLayer):
+                layer = tree_node.layer()
+                if self.is_overlay_layer_for_publish(layer):
+                    return Node(layer.id(), layer=layer)
+            else:
+                children = []
+                for child_tree_node in tree_node.children():
+                    node = overlays_tree(child_tree_node)
+                    if node:
+                        children.append(node)
+                if children:
+                    return Node(tree_node.name(), children)
 
-        return overlays_tree(layers_root)
+        root_node = self.iface.layerTreeView().layerTreeModel().rootGroup()
+        tree = overlays_tree(root_node)
+
+        # def dump_node(node, depth=0):
+        #     print('  ' * depth, node.name)
+        #     if node.children:
+        #         for child in node.children:
+        #             dump_node(child, depth + 1)
+        #
+        # dump_node(tree)
+        return tree
 
     def _new_metadata(self):
         """Create a new metadata object with initial data.
@@ -427,7 +422,7 @@ class WebGisPlugin:
         self.last_metadata = self._last_metadata() or {}
 
         dialog_filename = os.path.join(self.plugin_dir, "publish_dialog.ui")
-        dialog = PyQt4.uic.loadUi(dialog_filename)
+        dialog = PyQt5.uic.loadUi(dialog_filename)
         self.dialog = dialog
 
         # wrap qt wizard pages (pure GUI defined in qt creator/designer) with wrapper

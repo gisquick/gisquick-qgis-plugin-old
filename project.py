@@ -11,17 +11,21 @@ import re
 import types
 import datetime
 from decimal import Decimal
-from urlparse import parse_qs
+from urllib.parse import parse_qs
 
 # Import the PyQt and QGIS libraries
-from qgis.core import *
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
-from PyQt4.QtXml import QDomDocument
+from qgis.core import QgsMapLayer, QgsPalLayerSettings, NULL, QgsField, \
+    QgsError, QgsProject, QgsVectorLayerSimpleLabeling, QgsLayoutItemLabel
+from qgis.PyQt.QtWidgets import QItemDelegate, QTableWidgetItem, QHeaderView, \
+    QComboBox, QMessageBox, QWidget, QDialog, QLineEdit, QPushButton, \
+    QLabel, QRadioButton
+from qgis.PyQt.QtGui import QColor, QStandardItemModel, QStandardItem, QCursor
+from qgis.PyQt.QtCore import Qt, QDate
+from qgis.PyQt.QtCore import QVariant
+from qgis.PyQt.QtXml import QDomDocument
 
-from utils import to_decimal_array, opt_value
-from wizard import WizardPage
-
+from .utils import to_decimal_array, opt_value
+from .wizard import WizardPage
 
 AUTHENTICATION_OPTIONS = (
     'all',
@@ -107,7 +111,6 @@ BING_LAYERS = (
 MSG_ERROR = "Error"
 MSG_WARNING = "Warning"
 
-
 class ProjectPage(WizardPage):
 
     def _show_messages(self, messages):
@@ -129,7 +132,7 @@ class ProjectPage(WizardPage):
                     item = QTableWidgetItem(msg_type)
                     if msg_type == MSG_ERROR:
                         item.setForeground(red)
-                        self._num_errors +=1
+                        self._num_errors += 1
                     else:
                         item.setForeground(orange)
                     table.insertRow(row_index) # keep order of statements (see completeChanged)
@@ -188,7 +191,7 @@ class ProjectPage(WizardPage):
                 u"Project is using custom CRS which is currently not supported."
             ))
 
-        all_layers = [layer.name() for layer in self.plugin.layers_list()]
+        all_layers = self.plugin.layers_list()
         if len(all_layers) != len(set(all_layers)):
             messages.append((
                 MSG_ERROR,
@@ -205,7 +208,7 @@ class ProjectPage(WizardPage):
             ))
 
         self._show_messages(messages)
-        return len(filter(lambda msg: msg[0] == MSG_ERROR, messages)) == 0
+        return len([msg for msg in messages if msg[0] == MSG_ERROR]) == 0
 
     def is_page_config_valid(self):
         """Checks project configuration on this page and shows list of
@@ -221,16 +224,14 @@ class ProjectPage(WizardPage):
         min_resolution = self.dialog.min_scale.itemData(self.dialog.min_scale.currentIndex())
         max_resolution = self.dialog.max_scale.itemData(self.dialog.max_scale.currentIndex())
         msg = u"Invalid map scales range."
-        if min_resolution > max_resolution:
-            messages.append((MSG_ERROR, msg))
-        else:
-            self._remove_messages([(MSG_ERROR, msg)])
+        if min_resolution and max_resolution is not None:
+            if min_resolution > max_resolution:
+                messages.append((MSG_ERROR, msg))
+            else:
+                self._remove_messages([(MSG_ERROR, msg)])
 
         def publish_resolutions(resolutions, min_resolution=min_resolution, max_resolution=max_resolution):
-            return filter(
-                lambda res: res >= min_resolution and res <= max_resolution,
-                resolutions
-            )
+            return [res for res in resolutions if res >= min_resolution and res <= max_resolution]
 
         base_layers = [
             layer for layer in self.plugin.layers_list()
@@ -282,7 +283,7 @@ class ProjectPage(WizardPage):
 
         if messages:
             self._show_messages(messages)
-        return len(filter(lambda msg: msg[0] == MSG_ERROR, messages)) == 0
+        return len([msg for msg in messages if msg[0] == MSG_ERROR]) == 0
 
     def validate(self):
         if self.project_valid and self.is_page_config_valid():
@@ -467,7 +468,8 @@ class ProjectPage(WizardPage):
         if not self.project_valid:
             return
 
-        title = self.plugin.project.title() or self.plugin.project.readEntry("WMSServiceTitle", "/")[0]
+        title = self.plugin.project.title() or self.plugin.project.readEntry(
+            "WMSServiceTitle", "/")[0]
         if title:
             dialog.project_title.setText(title)
         else:
@@ -545,7 +547,7 @@ class ProjectPage(WizardPage):
 
             dialog.mapbox_mapid.setEnabled(checked)
             dialog.mapbox_apikey.setEnabled(checked)
-            
+
             position = 1 if dialog.blank.isChecked() else 0
             if dialog.osm.isChecked():
                 position += 1
@@ -557,7 +559,7 @@ class ProjectPage(WizardPage):
                 dialog.default_baselayer.removeItem(position)
             if dialog.bing.isChecked():
                 resolutions.update(BING_LAYERS[0]['resolutions'])
-            
+
             self._update_min_max_scales(resolutions)
 
             if checked:
@@ -574,7 +576,7 @@ class ProjectPage(WizardPage):
 
             dialog.bing_style.setEnabled(checked)
             dialog.bing_apikey.setEnabled(checked)
-            
+
             position = 1 if dialog.blank.isChecked() else 0
             if dialog.osm.isChecked():
                 position += 1
@@ -588,7 +590,7 @@ class ProjectPage(WizardPage):
                 resolutions.update(BING_LAYERS[index]['resolutions'])
             else:
                 dialog.default_baselayer.removeItem(position)
-            
+
             self._update_min_max_scales(resolutions)
 
             if checked:
@@ -605,7 +607,7 @@ class ProjectPage(WizardPage):
                 position += 1
             bing_layer = BING_LAYERS[index]
             dialog.default_baselayer.setItemText(position, bing_layer['name'])
-                
+
         dialog.blank.toggled.connect(blank_toggled)
         dialog.osm.toggled.connect(osm_toggled)
         dialog.mapbox.toggled.connect(mapbox_toggled)
@@ -613,7 +615,7 @@ class ProjectPage(WizardPage):
         dialog.bing.toggled.connect(bing_toggled)
         dialog.bing_style.currentIndexChanged.connect(bing_layer_changed)
         dialog.bing_apikey.textChanged.connect(bing_apikey_changed)
-        
+
         def scales_changed(index):
             self.is_page_config_valid()
         dialog.min_scale.currentIndexChanged.connect(scales_changed)
@@ -645,7 +647,8 @@ class ProjectPage(WizardPage):
                 )
                 dialog.extent_layer.addItem(layer.name(), extent)
 
-        dialog.message_valid_until.setDate(datetime.date.today() + datetime.timedelta(days=1))
+        dialog.message_valid_until.setDate(
+            datetime.date.today() + datetime.timedelta(days=1))
 
         def create_layer_widget(node):
             sublayers_widgets = []
@@ -663,7 +666,7 @@ class ProjectPage(WizardPage):
                 is_vector_layer = layer.type() == QgsMapLayer.VectorLayer
                 layer_item = QStandardItem(layer.name())
                 layer_item.setFlags(
-                      Qt.ItemIsEnabled
+                    Qt.ItemIsEnabled
                     | Qt.ItemIsSelectable
                     | Qt.ItemIsUserCheckable
                     | Qt.ItemIsTristate
@@ -672,7 +675,7 @@ class ProjectPage(WizardPage):
                 layer_item.setCheckState(Qt.Checked)
                 hidden = QStandardItem()
                 hidden.setFlags(
-                      Qt.ItemIsEnabled
+                    Qt.ItemIsEnabled
                     | Qt.ItemIsSelectable
                     | Qt.ItemIsUserCheckable
                     | Qt.ItemIsTristate
@@ -681,40 +684,47 @@ class ProjectPage(WizardPage):
 
                 return [layer_item, hidden]
 
-        if self.overlay_layers_tree:
-            layers_model = QStandardItemModel()
-            def columnItem(self, item, column):
-                """"Returns item from layers tree at the same row as given
-                item (of any column) and given column index."""
-                row = item.row()
-                if item.parent():
-                    return item.parent().child(row, column)
-                else:
-                    return self.item(row, column)
+        def columnItem(self, item, column):
+            """"Returns item from layers tree at the same row as given
+            item (of any column) and given column index."""
+            row = item.row()
+            if item.parent():
+                return item.parent().child(row, column)
+            else:
+                return self.item(row, column)
+
+        def create_horizontal_labels():
             layers_model.columnItem = types.MethodType(columnItem, layers_model)
             layers_model.setHorizontalHeaderLabels(
                 ['Layer', 'Hidden']
             )
+
             dialog.treeView.setModel(layers_model)
             layers_root = create_layer_widget(self.overlay_layers_tree)
+
             while layers_root.rowCount():
                 layers_model.appendRow(layers_root.takeRow(0))
-            dialog.treeView.header().setResizeMode(0, QHeaderView.Stretch)
+            dialog.treeView.header().setSectionResizeMode(0, QHeaderView.Stretch)
             dialog.treeView.header().setVisible(True)
 
-            def layer_item_changed(item):
-                if item.model().columnItem(item, 0).data(Qt.UserRole): # check if item is layer item
-                    dependent_items = None
-                    if item.column() == 0:
-                        enabled = item.checkState() == Qt.Checked
-                        item.model().columnItem(item, 1).setEnabled(enabled)
+        def layer_item_changed(item):
+            if item.model().columnItem(item, 0).data(Qt.UserRole):
+                # check if item is layer item
+                dependent_items = None
+                if item.column() == 0:
+                    enabled = item.checkState() == Qt.Checked
+                    item.model().columnItem(item, 1).setEnabled(enabled)
 
+        if self.overlay_layers_tree:
+            layers_model = QStandardItemModel()
+
+            create_horizontal_labels()
             layers_model.itemChanged.connect(layer_item_changed)
 
         if self.plugin.last_metadata:
             try:
                 self.setup_page(self.plugin.last_metadata)
-            except StandardError as e:
+            except Exception as e:
                 QMessageBox.warning(
                     None,
                     'Warning',
@@ -727,7 +737,7 @@ class ProjectPage(WizardPage):
 
     def is_complete(self):
         return self.initialized and self.project_valid and self._num_errors < 1
-        
+
     def get_published_layers(self, **layer_filter):
         """Returns array of qgis layers selected for publishing, optionally filtered by
         additional arguments.
@@ -778,7 +788,7 @@ class ProjectPage(WizardPage):
             'online_resource': project.readEntry("WMSOnlineResource", "/")[0],
             'fees': project.readEntry("WMSFees", "/")[0],
             'access_constrains': project.readEntry("WMSAccessConstraints", "/")[0],
-            'keyword_list':project_keyword_list if project_keyword_list != [u''] else [],
+            'keyword_list':project_keyword_list if project_keyword_list != [''] else [],
             'authentication': AUTHENTICATION_OPTIONS[dialog.authentication.currentIndex()],
             'use_mapcache': dialog.use_mapcache.isChecked()
         }
@@ -811,7 +821,7 @@ class ProjectPage(WizardPage):
             ],
             'projection': {
                 'code': project_crs.authid(),
-                'is_geographic': project_crs.geographicFlag(),
+                'is_geographic': project_crs.isGeographic(),
                 'proj4': project_crs.toProj4()
             },
             'units': self.plugin.map_units(),
@@ -837,8 +847,9 @@ class ProjectPage(WizardPage):
 
         min_resolution = self.dialog.min_scale.itemData(self.dialog.min_scale.currentIndex())
         max_resolution = self.dialog.max_scale.itemData(self.dialog.max_scale.currentIndex())
+
         def publish_resolutions(resolutions, min_resolution=min_resolution, max_resolution=max_resolution):
-            return filter(lambda res: res >= min_resolution and res <= max_resolution, resolutions)
+            return [res for res in resolutions if res >= min_resolution and res <= max_resolution]
 
         project_tile_resolutions = set(self.plugin.project_layers_resolutions())
         # collect set of all resolutions from special base layers and WMSC base layers
@@ -857,6 +868,7 @@ class ProjectPage(WizardPage):
 
         # create base layers metadata
         default_baselayer_name = self.dialog.default_baselayer.currentText()
+
         def base_layers_data(node):
             if node.children:
                 sublayers_data = []
@@ -910,14 +922,10 @@ class ProjectPage(WizardPage):
                         return None
                     min_resolution = layer_resolutions[-1]
                     max_resolution = layer_resolutions[0]
-                    upper_resolutions = filter(
-                        lambda res: res > max_resolution,
-                        project_tile_resolutions
-                    )
-                    lower_resolutions = filter(
-                        lambda res: res < min_resolution,
-                        project_tile_resolutions
-                    )
+                    upper_resolutions = [
+                        res for res in project_tile_resolutions if res > max_resolution]
+                    lower_resolutions = [
+                        res for res in project_tile_resolutions if res < min_resolution]
                     layer_data.update({
                         'type': 'wmsc',
                         'min_resolution': min_resolution,
@@ -970,7 +978,7 @@ class ProjectPage(WizardPage):
                 special_base_layer['apikey'] = dialog.mapbox_apikey.text()
                 if mapid.startswith('mapbox.'):
                     prefix, title = mapid.split('.', 1)
-                    title = ' '.join(map(lambda x: x.title(), title.split('-')))
+                    title = ' '.join([x.title() for x in title.split('-')])
                     special_base_layer['title'] += ' {}'.format(title)
             elif special_base_layer['name'].startswith('BING'):
                 special_base_layer['apikey'] = dialog.bing_apikey.text()
@@ -981,13 +989,15 @@ class ProjectPage(WizardPage):
 
         non_identifiable_layers = project.readListEntry("Identify", "/disabledLayers")[0] or []
 
-        if self.plugin.iface.layerTreeCanvasBridge().hasCustomLayerOrder():
-            overlays_order = self.plugin.iface.layerTreeCanvasBridge().customLayerOrder()
+        project_instance = QgsProject.instance()
+        if project_instance.layerTreeRoot().hasCustomLayerOrder():
+            overlays_order = project_instance.layerTreeRoot().customLayerOrder()
         else:
             overlays_order = [
-                layer.id() for layer in self.plugin.layers_list()
+                layer for layer in self.plugin.layers_list()
             ]
         wfs_layers = self.plugin.project.readListEntry("WFSLayers", "/")[0] or []
+
         def create_overlays_data(node):
             sublayers = []
             for child in node.children:
@@ -1028,10 +1038,10 @@ class ProjectPage(WizardPage):
                     'provider_type': layer.providerType(),
                     'extent': layer_extent,
                     'projection': layer.crs().authid(),
-                    'visible': self.plugin.iface.legendInterface().isLayerVisible(layer),
+                    'visible': self.plugin.iface.layerTreeView().layerTreeModel().rootGroup().findLayer(layer).itemVisibilityChecked(),
                     'queryable': not is_hidden and layer.id() not in non_identifiable_layers,
                     'hidden': is_hidden,
-                    'drawing_order': overlays_order.index(layer.id()),
+                    'drawing_order': overlays_order.index(layer),
                     'metadata': {
                         'title': layer.title(),
                         'abstract': layer.abstract(),
@@ -1050,15 +1060,13 @@ class ProjectPage(WizardPage):
 
                 if layer.type() == QgsMapLayer.VectorLayer:
                     layer_data['type'] = 'vector'
-                    layer_label_settings = QgsPalLayerSettings()
-                    layer_label_settings.readFromLayer(layer)
-                    layer_data['labels'] = layer_label_settings.enabled
-                    if layer.hasGeometryType():
+                    layer_data['labels'] = layer.labelsEnabled()
+                    if layer.isSpatial():
                         layer_data['geom_type'] = ('POINT', 'LINE', 'POLYGON')[layer.geometryType()]
 
-                    fields = layer.pendingFields()
+                    fields = layer.fields()
                     attributes_data = []
-                    excluded_attributes = layer.excludeAttributesWFS()
+                    excluded_attributes = layer.excludeAttributesWfs()
                     layer_wfs_allowed = layer.id() in wfs_layers
                     conversion_types = {
                         'BIGINT': 'INTEGER',
@@ -1095,7 +1103,9 @@ class ProjectPage(WizardPage):
                         layer_data['queryable'] = False
                 else:
                     layer_data['type'] = 'raster'
+
                 return layer_data
+
         metadata['overlays'] = []
         if self.overlay_layers_tree:
             overlays_data = create_overlays_data(self.overlay_layers_tree)
@@ -1103,29 +1113,28 @@ class ProjectPage(WizardPage):
                 metadata['overlays'] = overlays_data.get('layers')
 
         composer_templates = []
-        for composer in self.plugin.iface.activeComposers():
-            composition = composer.composition()
-            map_composer = composition.getComposerMapById(0)
-            map_rect = map_composer.rect()
+        project_layout_manager = project_instance.layoutManager()
+        for layout in project_layout_manager.layouts():
+            map = layout.referenceMap()
+            units_conversion = map.mapUnitsToLayoutUnits()
             composer_data = {
-                # cannot get composer name other way
-                'name': composer.composerWindow().windowTitle(),
-                'width': composition.paperWidth(),
-                'height': composition.paperHeight(),
+                'name': layout.name(),
+                'width': layout.layoutBounds().width(),
+                'height': layout.layoutBounds().height(),
                 'map': {
                     'name': 'map0',
-                    'x': map_composer.x(),
-                    'y': map_composer.y(),
-                    'width': map_rect.width(),
-                    'height': map_rect.height()
+                    'x': map.pagePos().x(),
+                    'y': map.pagePos().y(),
+                    'width': map.extent().width() * units_conversion,
+                    'height': map.extent().height() * units_conversion
                 },
                 'labels': [
-                    item.id() for item in composition.items()
-                        if isinstance(item, QgsComposerLabel) and item.id()
+                    item.id() for item in list(layout.items())
+                        if isinstance(item, QgsLayoutItemLabel) and item.id()
                 ]
             }
-            grid = map_composer.grid()
-            if grid and grid.enabled():
+            grid = map.grid()
+            if grid.enabled():
                 composer_data['map']['grid'] = {
                     'intervalX': grid.intervalX(),
                     'intervalY': grid.intervalY(),

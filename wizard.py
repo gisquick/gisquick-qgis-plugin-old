@@ -5,8 +5,7 @@
  Publish your projects into Gisquick application
  ***************************************************************************/
 """
-
-class WizardPage(object):
+class WizardPage:
     """Base class for a wizard page of the publishing dialog.
 
     Args:

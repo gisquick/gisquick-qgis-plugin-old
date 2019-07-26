@@ -10,12 +10,12 @@ import os
 import shutil
 
 # Import the PyQt and QGIS libraries
-from qgis.core import *
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from qgis.core import QgsVectorDataProvider, QgsRasterDataProvider, QgsDataSourceUri
+from qgis.PyQt.QtWidgets import QWizard, QFileDialog, QMessageBox
+from qgis.PyQt.QtCore import Qt
 
-from utils import opt_value, create_formatted_tree
-from wizard import WizardPage
+from .utils import opt_value, create_formatted_tree
+from .wizard import WizardPage
 
 
 class ConfirmationPage(WizardPage):
@@ -87,15 +87,16 @@ class ConfirmationPage(WizardPage):
                     )
                     fn(filename, outputname)
             except (shutil.Error, IOError) as e:
-                raise StandardError("Copying project files failed: {0}".format(e))
+                raise Exception("Copying project files failed: {0}".format(e))
 
         def copy_data_sources(link=False):
             messages = [] # error messages
+            # overwrite enabled by default, don't ask user
             # overwrite = [] # files to overwrite
             project_dir = os.path.dirname(self.plugin.project.fileName())
             # collect files to be copied
             publish_files = {}
-            for ds in self._datasources.itervalues():
+            for ds in list(self._datasources.values()):
                 for dsfile in ds:
                     if os.path.exists(dsfile) and os.path.isfile(dsfile):
                         publish_path = os.path.dirname(self._publish_dir + dsfile[len(project_dir):])
@@ -136,7 +137,7 @@ class ConfirmationPage(WizardPage):
             QApplication.setOverrideCursor(Qt.WaitCursor)
             # copy/link collected project files
             fn = os.symlink if link else shutil.copy
-            for publish_dir, project_files in publish_files.iteritems():
+            for publish_dir, project_files in list(publish_files.items()):
                 try:
                     # create dirs if not exists
                     if not os.path.exists(os.path.dirname(publish_path)):
@@ -163,8 +164,9 @@ class ConfirmationPage(WizardPage):
                     messages.append("Failed to copy data source: {0}".format(e))
             # restore original cursor
             QApplication.restoreOverrideCursor()
+
             if messages:
-                raise StandardError("Copying project data files failed:\n{0}".format(os.linesep.join(messages)))
+                raise Exception("Copying project files failed:\n{0}".format(os.linesep.join(messages)))
 
         def create_zip_project_file():
             dirpath = os.path.abspath(
@@ -187,7 +189,7 @@ class ConfirmationPage(WizardPage):
             try:
                 copy_project_files() # link=self.plugin.run_in_gislab)
                 copy_data_sources()  # link=self.plugin.run_in_gislab)
-            except StandardError as e:
+            except Exception as e:
                 QMessageBox.critical(self.dialog, "Error", "{0}".format(e))
                 return False
 
@@ -237,7 +239,7 @@ class ConfirmationPage(WizardPage):
                 else:
                     storage_type = 'Other'
 
-                datasource_uri = QgsDataSourceURI( layer_provider.dataSourceUri() )
+                datasource_uri = QgsDataSourceUri( layer_provider.dataSourceUri() )
                 datasource_db = datasource_uri.database()
                 if datasource_db:
                     datasource_db = os.path.normpath(datasource_db)

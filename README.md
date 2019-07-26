@@ -12,4 +12,5 @@ for more info.
  * Marcel Dancak, dancakm@gmail.com
 
 ## Contributors (alphabetical order)
+ * David Tethal (Google Summer of Code 2018)
  * Martin Landa, landa.martin@gmail.com
