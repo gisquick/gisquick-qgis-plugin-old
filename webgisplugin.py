@@ -145,6 +145,18 @@ class WebGisPlugin:
         self.iface.removePluginMenu(u"&Gisquick", self.action)
         self.iface.removeToolBarIcon(self.action)
 
+    def is_layer_for_publish(self, layer):
+        """Checks whether layer can be published as an overlay layer.
+
+        Args:
+            layer (qgis.core.QgsMapLayer): project layer
+ 
+        Returns:
+            bool: True if a layer can be published as an overlay layer
+        """
+        return (layer.type() == QgsMapLayer.VectorLayer or
+            (layer.type() == QgsMapLayer.RasterLayer and layer.providerType() == "wms"))
+
     def is_overlay_layer_for_publish(self, layer):
         """Checks whether layer can be published as an overlay layer.
 
@@ -321,8 +333,41 @@ class WebGisPlugin:
         # dump_node(tree)
         return tree
 
-
     def get_project_layers(self):
+        """Returns root layer node of project layers
+
+        Returns:
+            webgisplugin.Node: project overlay layers tree (root node)
+        """
+
+        def overlays_tree(tree_node):
+            if isinstance(tree_node, QgsLayerTreeLayer):
+                layer = tree_node.layer()
+                if self.is_layer_for_publish(layer):
+                    return Node(layer.id(), layer=layer)
+            else:
+                children = []
+                for child_tree_node in tree_node.children():
+                    node = overlays_tree(child_tree_node)
+                    if node:
+                        children.append(node)
+                if children:
+                    return Node(tree_node.name(), children)
+
+        root_node = self.iface.layerTreeView().layerTreeModel().rootGroup()
+        tree = overlays_tree(root_node)
+
+        # def dump_node(node, depth=0):
+        #     print('  ' * depth, node.name)
+        #     if node.children:
+        #         for child in node.children:
+        #             dump_node(child, depth + 1)
+        #
+        # dump_node(tree)
+        return tree
+
+
+    def get_project_overlay_layers(self):
         """Returns root layer node of project's overlay layers.
 
         Returns:

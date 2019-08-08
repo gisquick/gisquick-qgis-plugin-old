@@ -481,7 +481,8 @@ class ProjectPage(WizardPage):
 
         map_canvas = self.plugin.iface.mapCanvas()
         self.base_layers_tree = self.plugin.get_project_base_layers()
-        self.overlay_layers_tree = self.plugin.get_project_layers()
+        self.overlay_layers_tree = self.plugin.get_project_overlay_layers()
+        self.layers_tree = self.plugin.get_project_layers()
 
         def expiration_toggled(checked):
             dialog.expiration.setEnabled(checked)
@@ -700,7 +701,7 @@ class ProjectPage(WizardPage):
             )
 
             dialog.treeView.setModel(layers_model)
-            layers_root = create_layer_widget(self.overlay_layers_tree)
+            layers_root = create_layer_widget(self.layers_tree)
 
             while layers_root.rowCount():
                 layers_model.appendRow(layers_root.takeRow(0))
@@ -715,7 +716,7 @@ class ProjectPage(WizardPage):
                     enabled = item.checkState() == Qt.Checked
                     item.model().columnItem(item, 1).setEnabled(enabled)
 
-        if self.overlay_layers_tree:
+        if self.layers_tree:
             layers_model = QStandardItemModel()
 
             create_horizontal_labels()
@@ -1012,12 +1013,17 @@ class ProjectPage(WizardPage):
             elif node.layer:
                 layer = node.layer
                 layers_model = dialog.treeView.model()
-                layer_widget = layers_model.findItems(
+                layer_widget = None
+
+                layer_widgets = layers_model.findItems(
                     layer.name(),
                     Qt.MatchExactly | Qt.MatchRecursive
-                )[0]
+                )
+                for w in layer_widgets:
+                    if w.isCheckable():
+                        layer_widget = w
 
-                if layer_widget.checkState() == Qt.Unchecked:
+                if not layer_widget or layer_widget.checkState() == Qt.Unchecked:
                     return None
 
                 if layer.extent().isFinite() and not layer.extent().isEmpty():
@@ -1072,7 +1078,10 @@ class ProjectPage(WizardPage):
                         'BIGINT': 'INTEGER',
                         'INTEGER64': 'INTEGER',
                         'REAL': 'DOUBLE',
-                        'STRING': 'TEXT'
+                        'STRING': 'TEXT',
+                        'INT4': 'INTEGER',
+                        'NUMERIC': 'DOUBLE',
+                        'VARCHAR': 'TEXT'
                     }
                     if layer_wfs_allowed:
                         for field in fields:
@@ -1107,8 +1116,8 @@ class ProjectPage(WizardPage):
                 return layer_data
 
         metadata['overlays'] = []
-        if self.overlay_layers_tree:
-            overlays_data = create_overlays_data(self.overlay_layers_tree)
+        if self.layers_tree:
+            overlays_data = create_overlays_data(self.layers_tree)
             if overlays_data:
                 metadata['overlays'] = overlays_data.get('layers')
 
