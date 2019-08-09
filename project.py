@@ -898,7 +898,6 @@ class ProjectPage(WizardPage):
                         layer,
                         layer.extent()
                     ).toRectF().getCoords(),
-                    'wms_layers': source_params['layers'][0].split(','),
                     'projection': source_params['crs'][0],
                     'format': source_params['format'][0],
                     'url': source_params['url'][0],
@@ -909,6 +908,8 @@ class ProjectPage(WizardPage):
                         'keyword_list': layer.keywordList()
                     }
                 }
+                if "layers" in source_params:
+                    layer_data['wms_layers'] = source_params['layers'][0].split(','),
                 if layer.attribution():
                     layer_data['attribution'] = {
                         'title': layer.attribution(),
@@ -1079,9 +1080,13 @@ class ProjectPage(WizardPage):
                         'INTEGER64': 'INTEGER',
                         'REAL': 'DOUBLE',
                         'STRING': 'TEXT',
+                        'INT2': 'INTEGER',
                         'INT4': 'INTEGER',
+                        'INT8': 'INTEGER',
                         'NUMERIC': 'DOUBLE',
+                        'FLOAT8': 'DOUBLE',
                         'VARCHAR': 'TEXT'
+                        'CHARACTER': 'TEXT'
                     }
                     if layer_wfs_allowed:
                         for field in fields:
