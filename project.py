@@ -1085,7 +1085,7 @@ class ProjectPage(WizardPage):
                         'INT8': 'INTEGER',
                         'NUMERIC': 'DOUBLE',
                         'FLOAT8': 'DOUBLE',
-                        'VARCHAR': 'TEXT'
+                        'VARCHAR': 'TEXT',
                         'CHARACTER': 'TEXT'
                     }
                     if layer_wfs_allowed:
