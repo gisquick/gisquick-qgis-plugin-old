@@ -155,7 +155,7 @@ class WebGisPlugin:
             bool: True if a layer can be published as an overlay layer
         """
         return (layer.type() == QgsMapLayer.VectorLayer or
-            (layer.type() == QgsMapLayer.RasterLayer and layer.providerType() == "wms"))
+            layer.type() == QgsMapLayer.RasterLayer)
 
     def is_overlay_layer_for_publish(self, layer):
         """Checks whether layer can be published as an overlay layer.
