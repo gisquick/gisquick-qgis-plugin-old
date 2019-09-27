@@ -300,7 +300,7 @@ class WebGisPlugin:
             tree_layer.layer() for tree_layer in \
             QgsProject.instance().layerTreeRoot().findLayers()]
 
-    def _layers_tree(self, tree_node, base_only=False):
+    def _layers_tree(self, tree_node, filter_fn):
         """Returns layer node tree (internal use only).
 
         Returns:
@@ -308,14 +308,12 @@ class WebGisPlugin:
         """
         if isinstance(tree_node, QgsLayerTreeLayer):
             layer = tree_node.layer()
-            filter_fn = self.is_layer_for_publish if base_only \
-                else self.is_base_layer_for_publish
             if filter_fn(layer):
                 return Node(layer.id(), layer=layer)
         else:
             children = []
             for child_tree_node in tree_node.children():
-                node = self._layers_tree(child_tree_node)
+                node = self._layers_tree(child_tree_node, filter_fn)
                 if node:
                     children.append(node)
             if children:
@@ -328,9 +326,10 @@ class WebGisPlugin:
             webgisplugin.Node: project base layers tree (root node)
         """
         root_node = self.iface.layerTreeView().layerTreeModel().rootGroup()
-        tree = self._layers_tree(root_node, base_only=True)
-
-        return tree
+        return self._layers_tree(
+            root_node,
+            self.is_base_layer_for_publish
+        )
 
     def get_project_layers(self):
         """Returns root layer node of project layers
@@ -339,9 +338,10 @@ class WebGisPlugin:
             webgisplugin.Node: project overlay layers tree (root node)
         """
         root_node = self.iface.layerTreeView().layerTreeModel().rootGroup()
-        tree = self._layers_tree(root_node)
-
-        return tree
+        return self._layers_tree(
+            root_node,
+            self.is_layer_for_publish
+        )
 
 
     def get_project_overlay_layers(self):
@@ -350,32 +350,11 @@ class WebGisPlugin:
         Returns:
             webgisplugin.Node: project overlay layers tree (root node)
         """
-
-        def overlays_tree(tree_node):
-            if isinstance(tree_node, QgsLayerTreeLayer):
-                layer = tree_node.layer()
-                if self.is_overlay_layer_for_publish(layer):
-                    return Node(layer.id(), layer=layer)
-            else:
-                children = []
-                for child_tree_node in tree_node.children():
-                    node = overlays_tree(child_tree_node)
-                    if node:
-                        children.append(node)
-                if children:
-                    return Node(tree_node.name(), children)
-
         root_node = self.iface.layerTreeView().layerTreeModel().rootGroup()
-        tree = overlays_tree(root_node)
-
-        # def dump_node(node, depth=0):
-        #     print('  ' * depth, node.name)
-        #     if node.children:
-        #         for child in node.children:
-        #             dump_node(child, depth + 1)
-        #
-        # dump_node(tree)
-        return tree
+        return self._layers_tree(
+            root_node,
+            self.is_overlay_layer_for_publish
+        )
 
     def _new_metadata(self):
         """Create a new metadata object with initial data.
