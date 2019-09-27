@@ -419,6 +419,15 @@ class WebGisPlugin:
             )
             return
 
+        # Plugin currently does not support compressed projects, see 14
+        if os.path.splitext(self.project.fileName())[1] == '.qgz':
+            QMessageBox.critical(
+                None,
+                'Error',
+                'Plugin does not support compressed QGIS projects (QGZ). Please save your project into QGS file.'
+            )
+            return
+
         self.metadata = self._new_metadata()
         self.last_metadata = self._last_metadata() or {}
 
