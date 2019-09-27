@@ -7,11 +7,10 @@
 """
 
 # Import the PyQt and QGIS libraries
-from qgis.core import *
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from qgis.PyQt.QtWidgets import QListWidgetItem, QMessageBox, QTreeWidgetItem
+from qgis.PyQt.QtCore import Qt
 
-from wizard import WizardPage
+from .wizard import WizardPage
 
 
 class TopicsPage(WizardPage):

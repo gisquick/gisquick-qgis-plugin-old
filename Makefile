@@ -22,7 +22,7 @@ default: compile
 compile: $(RESOURCE_FILES)
 
 %_rc.py : %.qrc
-	pyrcc4 -o $*_rc.py  $<
+	pyrcc5 -o $*_rc.py  $<
 
 # The deploy target only works on unix like operating system where the Python
 # plugin directory is located at "$HOME/$(QGISDIR)/python/plugins"

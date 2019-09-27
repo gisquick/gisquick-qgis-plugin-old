@@ -11,12 +11,11 @@ import json
 import codecs
 
 # Import the PyQt and QGIS libraries
-from qgis.core import *
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from qgis.core import QgsProviderRegistry, QgsProject
+from qgis.PyQt.QtWidgets import QWizard, QTreeWidgetItem
 
-from utils import *
-from wizard import WizardPage
+from .utils import opt_value, create_formatted_tree, Decimal
+from .wizard import WizardPage
 
 
 class PublishPage(WizardPage):
@@ -30,12 +29,12 @@ class PublishPage(WizardPage):
         """Creates configuration summary of published project."""
 
         def format_template_data(data):
-            iterator = data.iteritems() if type(data) == dict else enumerate(data)
+            iterator = iter(list(data.items())) if type(data) == dict else enumerate(data)
             for key, value in iterator:
                 if type(value) in (list, tuple):
                     if value and isinstance(value[0], Decimal):
-                        value = [u'{0:.5f}'.format(v) for v in value]
-                    data[key] = u', '.join(map(unicode, value))
+                        value = ['{0:.5f}'.format(v) for v in value]
+                    data[key] = ', '.join(map(str, value))
             return data
 
         metadata = self.plugin.metadata
@@ -75,11 +74,9 @@ class PublishPage(WizardPage):
             else:
                 resolutions = layer_data['resolutions']
                 if 'min_resolution' in layer_data:
-                    resolutions = filter(
-                        lambda res: res >= layer_data['min_resolution'] and
-                            res <= layer_data['max_resolution'],
-                        resolutions
-                    )
+                    resolutions = [
+                        res for res in resolutions if res >= layer_data['min_resolution'] \
+                        and res <= layer_data['max_resolution']]
                 scales = self.plugin.resolutions_to_scales(resolutions)
                 # Regular QGIS base layers
                 if layer_data['type'] not in ('blank', 'osm', 'mapbox', 'bing'):
@@ -201,7 +198,7 @@ class PublishPage(WizardPage):
                                           opt_value(layer_data, 'attribution.url'),
                                           layer_data['metadata']['title'],
                                           layer_data['metadata']['abstract'],
-                                          layer_data['metadata']['keyword_list']
+                                          layer_data['metadata']['keyword_list'],
                                       ]
                 )
 
@@ -287,12 +284,12 @@ class PublishPage(WizardPage):
             project_data = fin.read()
             for layer in self.plugin.layers_list():
                 project_data = project_data.replace(
-                    u'"{0}"'.format(layer.id()),
-                    u'"{0}_{1}"'.format(layer.id(), publish_timestamp)
+                    '"{0}"'.format(layer.id()),
+                    '"{0}_{1}"'.format(layer.id(), publish_timestamp)
                 )
                 project_data = project_data.replace(
-                    u'>{0}<'.format(layer.id()),
-                    u'>{0}_{1}<'.format(layer.id(), publish_timestamp)
+                    '>{0}<'.format(layer.id()),
+                    '>{0}_{1}<'.format(layer.id(), publish_timestamp)
                 )
             fout.write(project_data)
 
@@ -315,15 +312,13 @@ class PublishPage(WizardPage):
         for layer_data in metadata['overlays']:
             collect_overlays_names(layer_data)
 
-        map_layers = QgsMapLayerRegistry.instance().mapLayers()
+        map_layers = QgsProject.instance().mapLayers()
         providers_registry = QgsProviderRegistry.instance()
         for layer_name in overlays_names:
-            layer = filter(
-              lambda l: layer_name in (l.name(), l.shortName()),
-              map_layers.values()
-            )[0]
+            layer = [l for l in list(map_layers.values()) \
+                     if layer_name in (l.name(), l.shortName())][0]
             if layer.dataProvider().name() == "spatialite":
-                provider = providers_registry.provider(
+                provider = providers_registry.createProvider(
                     "spatialite",
                     layer.dataProvider().dataSourceUri()
                 )
