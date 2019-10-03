@@ -11,7 +11,7 @@ import shutil
 
 # Import the PyQt and QGIS libraries
 from qgis.core import QgsVectorDataProvider, QgsRasterDataProvider, QgsDataSourceUri
-from qgis.PyQt.QtWidgets import QWizard, QFileDialog, QMessageBox
+from qgis.PyQt.QtWidgets import QWizard, QFileDialog, QMessageBox, QApplication
 from qgis.PyQt.QtCore import Qt
 
 from .utils import opt_value, create_formatted_tree
