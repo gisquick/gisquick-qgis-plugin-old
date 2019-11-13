@@ -125,7 +125,7 @@ QGroupBox::title {
            <item>
             <widget class="QGroupBox" name="osm">
              <property name="title">
-              <string>OpenStreeMap</string>
+              <string>OpenStreetMap</string>
              </property>
              <property name="checkable">
               <bool>true</bool>
