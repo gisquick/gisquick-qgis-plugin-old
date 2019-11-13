@@ -121,6 +121,9 @@ class ConfirmationPage(WizardPage):
                             # if os.path.exists(dstfile):
                             #     overwrite.append(dstfile)
                             publish_files[publish_path].append(dsfile)
+                    elif 'url' in dsfile.lower():
+                        # skip OWS layers (ugly: assuming URL in data source)
+                        continue
                     else:
                         messages.append("Unsupported data source: {0} is not a file".format(dsfile))
 
