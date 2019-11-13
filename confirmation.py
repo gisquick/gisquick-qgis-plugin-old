@@ -178,7 +178,13 @@ class ConfirmationPage(WizardPage):
                 )
             )
             filename = os.path.basename(self._publish_dir)
-            zip_out_file = os.path.join(dirpath, filename)
+
+            # create zip file in the parent directory of QGIS project
+            zip_out_file = os.path.join(
+                os.path.dirname(self.plugin.project.fileName()),
+                '..',
+                filename
+            )
 
             shutil.make_archive(
                 base_name=zip_out_file,
