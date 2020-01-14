@@ -178,6 +178,7 @@ class WebGisPlugin:
         Returns:
             bool: True if a layer can be published as a base layer
         """
+
         return layer.type() == QgsMapLayer.RasterLayer and layer.providerType() == "wms"
 
     def map_units(self):
@@ -188,10 +189,15 @@ class WebGisPlugin:
         """
         return {
             0: 'meters',
-            1: 'feet',
-            2: 'degrees',
-            3: 'unknown',
-            7: 'miles'
+            1: 'kilometers',
+            2: 'feet',
+            3: 'nautical miles',
+            4: 'yards',
+            5: 'miles',
+            6: 'degrees',
+            7: 'centimeters',
+            8: 'millimeters',
+            9: 'unknown'
         }[self.iface.mapCanvas().mapUnits()]
 
     def scales_to_resolutions(self, scales):
